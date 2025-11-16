@@ -206,7 +206,7 @@ function BagFrame:ResizeFrame(currentRow, currentCol, columns)
     local containerWidth = (columns * (buttonSize + spacing)) + 20
     local containerHeight = (totalRows * (buttonSize + spacing)) + 20
     local frameWidth = containerWidth + 20
-    local frameHeight = containerHeight + 100  -- Title (40) + search (30) + footer (30)
+    local frameHeight = containerHeight + 120  -- Title (40) + search (30) + footer (50)
 
     -- Minimum sizes
     if containerWidth < 200 then
@@ -328,29 +328,80 @@ function BagFrame:PassesSearchFilter(itemData)
     return matches
 end
 
--- Update money display
+-- Update money display with colored text (WoW 1.12.1 version like pfUI)
 function BagFrame:UpdateMoney()
     local currentMoney = addon.Modules.MoneyTracker:GetCurrentMoney()
     local moneyFrame = getglobal("Guda_BagFrame_MoneyFrame")
 
-    -- Current character money only
-    if not moneyFrame.text then
-        moneyFrame.text = moneyFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        moneyFrame.text:SetPoint("CENTER", moneyFrame, "CENTER", 0, 0)
+    if not moneyFrame then
+        addon:Debug("MoneyFrame not found!")
+        return
     end
 
-    moneyFrame.text:SetText(addon.Modules.Utils:FormatMoney(currentMoney))
+    -- Create text frame if it doesn't exist
+    if not moneyFrame.text then
+        moneyFrame.text = moneyFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        moneyFrame.text:SetPoint("CENTER", moneyFrame, "CENTER", 0, 0)
+        moneyFrame.text:SetJustifyH("CENTER")
+
+        -- Simple backdrop without border (better for mouse events)
+        moneyFrame:SetBackdrop({
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            tile = true,
+            tileSize = 16,
+            edgeSize = 0,
+            insets = { left = 0, right = 0, top = 0, bottom = 0 }
+        })
+        moneyFrame:SetBackdropColor(0, 0, 0, 0.6)
+
+        -- Set hit rect to make entire frame area responsive to mouse
+        -- This ensures hovering anywhere in the 180x35 frame triggers OnEnter
+        moneyFrame:SetHitRectInsets(0, 0, 0, 0)
+
+        -- Raise frame level to ensure it's on top and can receive mouse events
+        moneyFrame:SetFrameLevel(moneyFrame:GetParent():GetFrameLevel() + 10)
+
+        moneyFrame:Show() -- Ensure frame is visible
+    end
+
+    -- Calculate gold, silver, copper
+    local gold = math.floor(currentMoney / 10000)
+    local silver = math.floor(mod(currentMoney, 10000) / 100)
+    local copper = mod(currentMoney, 100)
+
+    -- Create colored string like pfUI (white numbers, colored letters)
+    local moneyString = ""
+    if gold > 0 then
+        moneyString = moneyString .. "|cffffffff" .. gold .. "|cffffd700g"
+    end
+    if silver > 0 or gold > 0 then
+        moneyString = moneyString .. "|cffffffff " .. silver .. "|cffc7c7cfs"
+    end
+    moneyString = moneyString .. "|cffffffff " .. copper .. "|cffeda55fc"
+
+    moneyFrame.text:SetText(moneyString)
 end
 
 -- Money tooltip handler
 function Guda_BagFrame_MoneyOnEnter(self)
-    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    if not self then return end
+
+    -- Anchor tooltip to TOPRIGHT - aligns tooltip's right edge with money container's right edge
+    GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT", 0, 0)
     GameTooltip:ClearLines()
 
     -- Get all characters and total
     local chars = addon.Modules.DB:GetAllCharacters(true)
     local totalMoney = addon.Modules.DB:GetTotalMoney(true)
-    local currentPlayerName = addon.Modules.DB:GetPlayerFullName()
+
+    -- Header with faction/realm total
+    GameTooltip:AddDoubleLine(
+        "Faction/realm-wide gold:",
+        addon.Modules.Utils:FormatMoney(totalMoney),
+        1, 0.82, 0,
+        1, 1, 1
+    )
+    GameTooltip:AddLine(" ")
 
     -- List each character with class-colored names
     for _, char in ipairs(chars) do
@@ -370,15 +421,6 @@ function Guda_BagFrame_MoneyOnEnter(self)
             1, 1, 1
         )
     end
-
-    -- Add separator and total at the bottom
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddDoubleLine(
-        "Total:",
-        addon.Modules.Utils:FormatMoney(totalMoney),
-        1, 0.82, 0,
-        1, 1, 1
-    )
 
     GameTooltip:Show()
 end

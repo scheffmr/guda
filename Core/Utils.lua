@@ -5,14 +5,10 @@ local addon = Guda
 local Utils = {}
 addon.Modules.Utils = Utils
 
--- Format money (copper to gold/silver/copper string)
+-- Format money (copper to gold/silver/copper string) - WoW 1.12.1 version
 function Utils:FormatMoney(copper, showZero)
     if not copper or copper == 0 then
-        if showZero then
-            return "0|cFFFFD700g|r 0|cFFC0C0C0s|r 0|cFFFF6600c|r"
-        else
-            return "0|cFFC0C0C0s|r"
-        end
+        return "0c"
     end
 
     local gold = math.floor(copper / 10000)
@@ -21,12 +17,12 @@ function Utils:FormatMoney(copper, showZero)
 
     local str = ""
     if gold > 0 then
-        str = str .. gold .. "|cFFFFD700g|r "
+        str = str .. gold .. "g "
     end
     if silver > 0 or gold > 0 then
-        str = str .. silver .. "|cFFC0C0C0s|r "
+        str = str .. silver .. "s "
     end
-    str = str .. bronze .. "|cFFFF6600c|r"
+    str = str .. bronze .. "c"
 
     return str
 end

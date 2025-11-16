@@ -67,7 +67,7 @@
                 <Anchors>
                     <Anchor point="BOTTOMLEFT">
                         <Offset>
-                            <AbsDimension x="10" y="20"/>
+                            <AbsDimension x="10" y="10"/>
                         </Offset>
                     </Anchor>
                 </Anchors>
@@ -343,10 +343,10 @@
             <!-- Money Display Frame (moved to bottom right) -->
             <Frame name="$parent_MoneyFrame" enableMouse="true">
                 <Size>
-                    <AbsDimension x="150" y="30"/>
+                    <AbsDimension x="180" y="35"/>
                 </Size>
                 <Anchors>
-                    <Anchor point="BOTTOMRIGHT">
+                    <Anchor point="BOTTOMRIGHT" relativePoint="BOTTOMRIGHT">
                         <Offset>
                             <AbsDimension x="-10" y="10"/>
                         </Offset>
