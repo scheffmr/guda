@@ -201,13 +201,13 @@ function BagFrame:ResizeFrame(currentRow, currentCol, columns)
     -- Calculate required dimensions based on columns
     local containerWidth = (columns * (buttonSize + spacing)) + 20
     local containerHeight = (totalRows * (buttonSize + spacing)) + 20
-    local frameWidth = containerWidth + 30
+    local frameWidth = containerWidth + 20
     local frameHeight = containerHeight + 100  -- Title (40) + search (30) + footer (30)
 
     -- Minimum sizes
     if containerWidth < 200 then
         containerWidth = 200
-        frameWidth = 230
+        frameWidth = 220
     end
     if containerHeight < 150 then
         containerHeight = 150
@@ -219,7 +219,7 @@ function BagFrame:ResizeFrame(currentRow, currentCol, columns)
     -- Maximum sizes
     if containerWidth > 800 then
         containerWidth = 800
-        frameWidth = 830
+        frameWidth = 820
     end
     if containerHeight > 600 then
         containerHeight = 600
