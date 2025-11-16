@@ -503,9 +503,100 @@ function Guda_BankFrame_SwitchToBlizzardUI()
         blizzardBankFrame:ClearAllPoints()
         blizzardBankFrame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, -104)
         blizzardBankFrame:Show()
+        
+        -- Show the Guda button if it exists
+        BankFrame:ShowGudaButton()
+    end
+end
+
+-- Switch from Blizzard bank UI back to Guda UI
+function Guda_BankFrame_SwitchToGudaUI()
+    -- Hide Blizzard bank frame visually (but keep it functional)
+    local blizzardBankFrame = getglobal("BankFrame")
+    if blizzardBankFrame then
+        blizzardBankFrame:SetScale(0.001)
+        blizzardBankFrame:SetPoint("TOPLEFT", 0, 0)
+        blizzardBankFrame:SetAlpha(0)
+    end
+    
+    -- Hide the Guda button
+    local gudaButton = getglobal("BankFrame_GudaButton")
+    if gudaButton then
+        gudaButton:Hide()
     end
 
-    addon:Print("Switched to Blizzard bank UI. Close and reopen bank to use custom UI again.")
+    -- Show custom bank frame
+    local customBankFrame = getglobal("Guda_BankFrame")
+    if customBankFrame then
+        customBankFrame:Show()
+    end
+
+    -- Update the custom bank frame in interactive mode
+    BankFrame:ShowCurrentCharacter()
+    
+    addon:Print("Switched to Guda bank UI")
+end
+
+-- Create button on Blizzard BankFrame to switch to Guda UI
+function BankFrame:CreateGudaButtonOnBlizzardUI()
+    local blizzardBankFrame = getglobal("BankFrame")
+    if not blizzardBankFrame then return end
+
+    -- Check if button already exists
+    if getglobal("BankFrame_GudaButton") then return end
+
+    -- Create the button next to close button
+    local gudaButton = CreateFrame("Button", "BankFrame_GudaButton", blizzardBankFrame)
+    gudaButton:SetWidth(15)
+    gudaButton:SetHeight(15)
+    
+    -- Position next to close button (to the left of it)
+    local closeButton = getglobal("BankFrameCloseButton")
+    if closeButton then
+        gudaButton:SetPoint("RIGHT", closeButton, "LEFT", -2, 0)
+    else
+        gudaButton:SetPoint("TOPRIGHT", blizzardBankFrame, "TOPRIGHT", -61, -17)
+    end
+
+    -- Create button texture
+    local texture = gudaButton:CreateTexture(nil, "ARTWORK")
+    texture:SetAllPoints(gudaButton)
+    texture:SetTexture("Interface\\Icons\\INV_Misc_Bag_08")
+    texture:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    -- Create highlight texture
+    local highlight = gudaButton:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints(gudaButton)
+    highlight:SetTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
+    highlight:SetBlendMode("ADD")
+
+    -- Set scripts
+    gudaButton:SetScript("OnClick", function()
+        Guda_BankFrame_SwitchToGudaUI()
+    end)
+
+    gudaButton:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(this, "ANCHOR_LEFT")
+        GameTooltip:SetText("Use Guda Bank UI")
+        GameTooltip:Show()
+    end)
+
+    gudaButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    -- Initially hide the button
+    gudaButton:Hide()
+    
+    addon:Debug("Guda button created on Blizzard BankFrame")
+end
+
+-- Show the Guda button on Blizzard UI
+function BankFrame:ShowGudaButton()
+    local gudaButton = getglobal("BankFrame_GudaButton")
+    if gudaButton then
+        gudaButton:Show()
+    end
 end
 
 -- Initialize
@@ -517,6 +608,9 @@ function BankFrame:Initialize()
         blizzardBankFrame:SetPoint("TOPLEFT", 0, 0)
         blizzardBankFrame:SetAlpha(0)
     end
+    
+    -- Create Guda button on Blizzard BankFrame
+    self:CreateGudaButtonOnBlizzardUI()
 
     -- Update when bank is opened
     addon.Modules.Events:OnBankOpen(function()
