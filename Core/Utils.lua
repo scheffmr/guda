@@ -128,6 +128,14 @@ function Utils:GetBagSlotCount(bagID)
     if bagID == -1 then
         -- Bank has 24 slots in vanilla
         return 24
+    elseif bagID == -2 then
+        -- Keyring - vanilla WoW has 12-32 slots depending on version
+        local slots = GetContainerNumSlots(bagID)
+        if not slots or slots == 0 then
+            -- Fallback: keyring typically has 12 slots in vanilla
+            return 12
+        end
+        return slots
     else
         return GetContainerNumSlots(bagID) or 0
     end
@@ -135,7 +143,7 @@ end
 
 -- Check if bag is valid
 function Utils:IsBagValid(bagID)
-    if bagID == 0 or bagID == -1 then
+    if bagID == 0 or bagID == -1 or bagID == -2 then
         return true
     end
     return GetContainerNumSlots(bagID) and GetContainerNumSlots(bagID) > 0

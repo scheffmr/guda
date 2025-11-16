@@ -9,6 +9,7 @@ addon.Modules.BagFrame = BagFrame
 local currentViewChar = nil -- nil = current character
 local searchText = ""
 local itemButtons = {}
+local showKeyring = false -- Toggle for keyring display
 
 -- Global click catcher for clearing search focus
 local clickCatcher = nil
@@ -153,6 +154,9 @@ function BagFrame:Update()
 
     -- Update money
     self:UpdateMoney()
+
+    -- Update bag slots info
+    self:UpdateBagSlotsInfo(bagData, isOtherChar)
 end
 
 -- Display items
@@ -165,8 +169,31 @@ function BagFrame:DisplayItems(bagData, isOtherChar, charName)
     local perRow = addon.Modules.DB:GetSetting("bagColumns") or 10
     local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
 
+    -- Build bag list - include keyring if toggled on
+    local bagsToShow = {}
     for _, bagID in ipairs(addon.Constants.BAGS) do
+        table.insert(bagsToShow, bagID)
+    end
+
+    -- Add keyring (-2) at the end if toggled on
+    if showKeyring then
+        table.insert(bagsToShow, -2) -- Insert at end
+    end
+
+    for _, bagID in ipairs(bagsToShow) do
         local bag = bagData[bagID]
+
+        -- Add spacing before keyring section
+        if bagID == -2 then
+            -- Add spacing before keyring
+            if col > 0 then
+                -- Move to next row if not at start of row
+                col = 0
+                row = row + 1
+            end
+            -- Add extra spacing (1 row)
+            row = row + 1
+        end
 
         -- Get slot count for this bag
         local numSlots
@@ -378,6 +405,47 @@ function BagFrame:UpdateMoney()
     else
         addon:Debug("Still couldn't find or create MoneyFrame!")
     end
+end
+
+-- Update bag slots info text (excluding keyring)
+function BagFrame:UpdateBagSlotsInfo(bagData, isOtherChar)
+    local infoText = getglobal("Guda_BagFrame_Toolbar_BagSlotsInfo_Text")
+    if not infoText then return end
+
+    local totalSlots = 0
+    local usedSlots = 0
+
+    -- Count slots in regular bags only (0-4), exclude keyring (-2)
+    for _, bagID in ipairs(addon.Constants.BAGS) do
+        local bag = bagData[bagID]
+
+        -- Get slot count for this bag
+        local numSlots
+        if isOtherChar and bag and bag.numSlots then
+            numSlots = bag.numSlots
+        else
+            numSlots = addon.Modules.Utils:GetBagSlotCount(bagID)
+        end
+
+        if numSlots and numSlots > 0 then
+            totalSlots = totalSlots + numSlots
+
+            -- Count used slots
+            if bag and bag.slots then
+                for slot = 1, numSlots do
+                    if bag.slots[slot] then
+                        usedSlots = usedSlots + 1
+                    end
+                end
+            end
+        end
+    end
+
+    local freeSlots = totalSlots - usedSlots
+
+    -- Format: "56 / 80" (free / total)
+    infoText:SetText(string.format("%d / %d", freeSlots, totalSlots))
+    infoText:SetTextColor(0.7, 0.7, 0.7)
 end
 
 function BagFrame:CreateMoneyFrame()
@@ -736,6 +804,29 @@ function Guda_BagFrame_OnSearchChanged(self)
         addon:Print("Search text changed to: '" .. (searchText or "empty") .. "'")
         BagFrame:Update()
     end
+end
+
+-- Keyring toggle handler
+function Guda_BagFrame_ToggleKeyring()
+    showKeyring = not showKeyring
+
+    -- Update button appearance to show toggle state
+    local button = getglobal("Guda_BagFrame_Toolbar_KeyringButton")
+    if button then
+        local icon = getglobal(button:GetName().."_Icon")
+        if icon then
+            if showKeyring then
+                -- Highlighted when active
+                icon:SetVertexColor(1.0, 1.0, 0.5)
+            else
+                -- Normal color when inactive
+                icon:SetVertexColor(0.8, 0.8, 0.8)
+            end
+        end
+    end
+
+    -- Refresh display
+    BagFrame:Update()
 end
 
 -- Sort button handler

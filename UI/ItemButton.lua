@@ -164,8 +164,12 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
             countText:Hide()
         end
 
-        -- Set quality border
-        if itemData.quality and itemData.quality > 1 then
+        -- Set quality border (or keyring border)
+        if bagID == -2 then
+            -- Special border for keyring items (cyan/blue)
+            qualityBorder:SetVertexColor(0.2, 0.8, 1.0, 1)
+            qualityBorder:Show()
+        elseif itemData.quality and itemData.quality > 1 then
             local r, g, b = addon.Modules.Utils:GetQualityColor(itemData.quality)
             qualityBorder:SetVertexColor(r, g, b, 1)
             qualityBorder:Show()
@@ -202,7 +206,15 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
         end
 
         countText:Hide()
-        qualityBorder:Hide()
+
+        -- Show border for empty keyring slots
+        if bagID == -2 then
+            qualityBorder:SetVertexColor(0.2, 0.8, 1.0, 0.5) -- Dimmer cyan for empty slots
+            qualityBorder:Show()
+        else
+            qualityBorder:Hide()
+        end
+
         self:Show()
     end
 

@@ -273,7 +273,88 @@
                 </Scripts>
 
                 <Frames>
-                    <!-- All buttons moved to header -->
+                    <!-- Keyring Button (footer left) -->
+                    <Button name="$parent_KeyringButton">
+                        <Size>
+                            <AbsDimension x="24" y="24"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="LEFT">
+                                <Offset>
+                                    <AbsDimension x="13" y="3"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Layers>
+                            <Layer level="ARTWORK">
+                                <Texture name="$parent_Icon">
+                                    <Size>
+                                        <AbsDimension x="20" y="20"/>
+                                    </Size>
+                                    <Anchors>
+                                        <Anchor point="CENTER"/>
+                                    </Anchors>
+                                    <Color r="0.8" g="0.8" b="0.8"/>
+                                </Texture>
+                            </Layer>
+                        </Layers>
+                        <Scripts>
+                            <OnLoad>
+                                local icon = getglobal(this:GetName().."_Icon")
+                                if icon then
+                                    icon:SetTexture("Interface\\Icons\\INV_Misc_Key_03")
+                                    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                                end
+                            </OnLoad>
+                            <OnClick>
+                                Guda_BagFrame_ToggleKeyring()
+                            </OnClick>
+                            <OnEnter>
+                                GameTooltip:SetOwner(this, "ANCHOR_TOP")
+                                GameTooltip:SetText("Toggle Keyring")
+                                GameTooltip:Show()
+                            </OnEnter>
+                            <OnLeave>
+                                GameTooltip:Hide()
+                            </OnLeave>
+                        </Scripts>
+                    </Button>
+
+                    <!-- Bag Slots Info Text -->
+                    <Frame name="$parent_BagSlotsInfo">
+                        <Size>
+                            <AbsDimension x="100" y="24"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_KeyringButton">
+                                <Offset>
+                                    <AbsDimension x="8" y="0"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Layers>
+                            <Layer level="OVERLAY">
+                                <FontString name="$parent_Text" inherits="GameFontNormal">
+                                    <Anchors>
+                                        <Anchor point="LEFT">
+                                            <Offset>
+                                                <AbsDimension x="0" y="0"/>
+                                            </Offset>
+                                        </Anchor>
+                                    </Anchors>
+                                </FontString>
+                            </Layer>
+                        </Layers>
+                        <Scripts>
+                            <OnLoad>
+                                local text = getglobal(this:GetName().."_Text")
+                                if text then
+                                    text:SetText("0 / 0")
+                                    text:SetTextColor(0.8, 0.8, 0.8)
+                                end
+                            </OnLoad>
+                        </Scripts>
+                    </Frame>
                 </Frames>
             </Frame>
 

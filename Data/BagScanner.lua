@@ -10,9 +10,13 @@ addon.Modules.BagScanner = BagScanner
 function BagScanner:ScanBags()
     local bagData = {}
 
+    -- Scan regular bags
     for _, bagID in ipairs(addon.Constants.BAGS) do
         bagData[bagID] = self:ScanBag(bagID)
     end
+
+    -- Also scan keyring (bagID -2)
+    bagData[-2] = self:ScanBag(-2)
 
     return bagData
 end
