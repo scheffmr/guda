@@ -142,6 +142,29 @@ function Tooltip:Initialize()
             end
         end
     end
+
+    -- Clear cache function
+    function Tooltip:ClearCache()
+        addon:Debug("Tooltip cache cleared")
+    end
+
+    -- Register for bag updates in Initialize
+    function Tooltip:Initialize()
+        addon:Print("Initializing tooltip module...")
+        
+        -- Your existing hook code...
+        
+        -- Clear cache on bag updates
+        local frame = CreateFrame("Frame")
+        frame:RegisterEvent("BAG_UPDATE")
+        frame:SetScript("OnEvent", function()
+            if event == "BAG_UPDATE" then
+                Tooltip:ClearCache()
+            end
+        end)
+        
+        addon:Print("Tooltip item-count integration enabled")
+    end
     
     addon:Print("Tooltip item-count integration enabled")
 end

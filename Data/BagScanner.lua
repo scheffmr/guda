@@ -76,9 +76,30 @@ end
 function BagScanner:SaveToDatabase()
     local bagData = self:ScanBags()
     addon.Modules.DB:SaveBags(bagData)
+    addon:Debug("Bag data saved to database")
+    
+    -- Clear tooltip cache so counts update immediately
+    if addon.Modules.Tooltip and addon.Modules.Tooltip.ClearCache then
+        addon.Modules.Tooltip:ClearCache()
+    end
 end
 
--- Initialize (no auto-save, only save when bags are opened)
+-- Initialize with auto-save on bag changes
 function BagScanner:Initialize()
-    addon:Debug("Bag scanner initialized")
+    -- Create event frame for bag updates
+    local eventFrame = CreateFrame("Frame")
+    self.eventFrame = eventFrame
+    
+    -- Register bag update events
+    eventFrame:RegisterEvent("BAG_UPDATE")
+    eventFrame:RegisterEvent("BAG_UPDATE_DELAYED")
+    
+    eventFrame:SetScript("OnEvent", function()
+        if event == "BAG_UPDATE" or event == "BAG_UPDATE_DELAYED" then
+            addon:Debug("Bag update detected, saving data...")
+            self:SaveToDatabase()
+        end
+    end)
+    
+    addon:Debug("Bag scanner initialized with auto-save")
 end
