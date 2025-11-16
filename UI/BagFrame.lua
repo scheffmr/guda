@@ -206,7 +206,7 @@ function BagFrame:ResizeFrame(currentRow, currentCol, columns)
     local containerWidth = (columns * (buttonSize + spacing)) + 20
     local containerHeight = (totalRows * (buttonSize + spacing)) + 20
     local frameWidth = containerWidth + 20
-    local frameHeight = containerHeight + 120  -- Title (40) + search (30) + footer (50)
+    local frameHeight = containerHeight + 115  -- Title (40) + search (30) + footer (45)
 
     -- Minimum sizes
     if containerWidth < 200 then
@@ -341,18 +341,10 @@ function BagFrame:UpdateMoney()
     -- Create text frame if it doesn't exist
     if not moneyFrame.text then
         moneyFrame.text = moneyFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        moneyFrame.text:SetPoint("CENTER", moneyFrame, "CENTER", 0, 0)
-        moneyFrame.text:SetJustifyH("CENTER")
+        moneyFrame.text:SetPoint("RIGHT", moneyFrame, "RIGHT", -15, 0)
+        moneyFrame.text:SetJustifyH("RIGHT")
 
-        -- Simple backdrop without border (better for mouse events)
-        moneyFrame:SetBackdrop({
-            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-            tile = true,
-            tileSize = 16,
-            edgeSize = 0,
-            insets = { left = 0, right = 0, top = 0, bottom = 0 }
-        })
-        moneyFrame:SetBackdropColor(0, 0, 0, 0.6)
+        -- No visible backdrop - just invisible frame for mouse events
 
         -- Set hit rect to make entire frame area responsive to mouse
         -- This ensures hovering anywhere in the 180x35 frame triggers OnEnter
