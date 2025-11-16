@@ -232,7 +232,7 @@
                     <OnLoad>
                         local icon = getglobal(this:GetName().."_Icon")
                         if icon then
-                            icon:SetTexture("Interface\\Icons\\INV_Misc_Bag_08")
+                            icon:SetTexture("Interface\\Icons\\INV_Misc_Bag_13")
                             icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
                         end
                     </OnLoad>
