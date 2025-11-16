@@ -147,13 +147,20 @@ function BagFrame:DisplayItems(bagData, isOtherChar, charName)
     local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
 
     for _, bagID in ipairs(addon.Constants.BAGS) do
+        local bag = bagData[bagID]
+
         -- Get slot count for this bag
-        local numSlots = addon.Modules.Utils:GetBagSlotCount(bagID)
+        local numSlots
+        if isOtherChar and bag and bag.numSlots then
+            -- Use stored slot count for other characters
+            numSlots = bag.numSlots
+        else
+            -- Use current character's bag slot count
+            numSlots = addon.Modules.Utils:GetBagSlotCount(bagID)
+        end
 
         -- Only show bags that have slots
         if numSlots and numSlots > 0 then
-            local bag = bagData[bagID]
-
             -- Iterate through ALL slots (1 to numSlots) to show empty slots too
             for slot = 1, numSlots do
                 local itemData = bag and bag.slots and bag.slots[slot] or nil
@@ -527,6 +534,164 @@ function Guda_BagFrame_MoneyOnEnter(self)
     GameTooltip:Show()
 end
 
+-- Character dropdown management
+local characterDropdown = nil
+
+-- Toggle character dropdown
+function Guda_BagFrame_ToggleCharacterDropdown(button)
+    if characterDropdown and characterDropdown:IsShown() then
+        characterDropdown:Hide()
+        return
+    end
+
+    if not characterDropdown then
+        -- Create dropdown frame
+        characterDropdown = CreateFrame("Frame", "Guda_CharacterDropdown", UIParent)
+        characterDropdown:SetFrameStrata("DIALOG")
+        characterDropdown:SetWidth(200)
+        characterDropdown:SetBackdrop({
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+            tile = true,
+            tileSize = 16,
+            edgeSize = 16,
+            insets = { left = 4, right = 4, top = 4, bottom = 4 }
+        })
+        characterDropdown:SetBackdropColor(0, 0, 0, 0.95)
+        characterDropdown:EnableMouse(true)
+        characterDropdown:Hide()
+
+        characterDropdown.buttons = {}
+    end
+
+    -- Position dropdown below the button
+    characterDropdown:ClearAllPoints()
+    characterDropdown:SetPoint("TOPLEFT", button, "BOTTOMLEFT", 0, -2)
+
+    -- Clear existing buttons
+    for _, btn in ipairs(characterDropdown.buttons) do
+        btn:Hide()
+    end
+    characterDropdown.buttons = {}
+
+    -- Get all characters
+    local chars = addon.Modules.DB:GetAllCharacters(true)
+
+    -- Add "Current Character" option at the top
+    local yOffset = -8
+    local currentCharButton = CreateFrame("Button", nil, characterDropdown)
+    currentCharButton:SetWidth(188)
+    currentCharButton:SetHeight(20)
+    currentCharButton:SetPoint("TOP", characterDropdown, "TOP", 0, yOffset)
+
+    -- Button background on hover
+    local currentCharBg = currentCharButton:CreateTexture(nil, "BACKGROUND")
+    currentCharBg:SetAllPoints()
+    currentCharBg:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+    currentCharBg:SetBlendMode("ADD")
+    currentCharBg:SetAlpha(0)
+
+    -- Button text
+    local currentCharText = currentCharButton:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    currentCharText:SetPoint("LEFT", currentCharButton, "LEFT", 8, 0)
+    currentCharText:SetText("Current Character")
+
+    -- Button scripts
+    currentCharButton:SetScript("OnEnter", function()
+        currentCharBg:SetAlpha(0.3)
+    end)
+    currentCharButton:SetScript("OnLeave", function()
+        currentCharBg:SetAlpha(0)
+    end)
+    currentCharButton:SetScript("OnClick", function()
+        addon.Modules.BagFrame:ShowCurrentCharacter()
+        characterDropdown:Hide()
+    end)
+
+    table.insert(characterDropdown.buttons, currentCharButton)
+    yOffset = yOffset - 20
+
+    -- Add separator
+    local separator = characterDropdown:CreateTexture(nil, "ARTWORK")
+    separator:SetHeight(1)
+    separator:SetWidth(180)
+    separator:SetPoint("TOP", characterDropdown, "TOP", 0, yOffset)
+    separator:SetTexture(1, 1, 1, 0.2)
+    yOffset = yOffset - 4
+
+    -- Add character buttons
+    for _, char in ipairs(chars) do
+        -- Capture variables in local scope for closure
+        local charFullName = char.fullName
+        local charName = char.name
+        local charMoney = char.money or 0
+        local charClassToken = char.classToken
+
+        local charButton = CreateFrame("Button", nil, characterDropdown)
+        charButton:SetWidth(188)
+        charButton:SetHeight(20)
+        charButton:SetPoint("TOP", characterDropdown, "TOP", 0, yOffset)
+
+        -- Button background on hover
+        local charBg = charButton:CreateTexture(nil, "BACKGROUND")
+        charBg:SetAllPoints()
+        charBg:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+        charBg:SetBlendMode("ADD")
+        charBg:SetAlpha(0)
+
+        -- Get class color
+        local classColor = charClassToken and RAID_CLASS_COLORS[charClassToken]
+        local r, g, b = 1, 1, 1
+        if classColor then
+            r, g, b = classColor.r, classColor.g, classColor.b
+        end
+
+        -- Button text
+        local charText = charButton:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+        charText:SetPoint("LEFT", charButton, "LEFT", 8, 0)
+        charText:SetText(charName)
+        charText:SetTextColor(r, g, b)
+
+        -- Money text
+        local moneyText = charButton:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+        moneyText:SetPoint("RIGHT", charButton, "RIGHT", -8, 0)
+        moneyText:SetText(addon.Modules.Utils:FormatMoney(charMoney))
+        moneyText:SetTextColor(0.7, 0.7, 0.7)
+
+        -- Button scripts
+        charButton:SetScript("OnEnter", function()
+            charBg:SetAlpha(0.3)
+        end)
+        charButton:SetScript("OnLeave", function()
+            charBg:SetAlpha(0)
+        end)
+        charButton:SetScript("OnClick", function()
+            if charFullName then
+                addon.Modules.BagFrame:ShowCharacter(charFullName)
+                characterDropdown:Hide()
+            else
+                addon:Print("Error: Character fullName is nil")
+            end
+        end)
+
+        table.insert(characterDropdown.buttons, charButton)
+        yOffset = yOffset - 20
+    end
+
+    -- Set dropdown height based on content
+    characterDropdown:SetHeight(math.abs(yOffset) + 8)
+
+    -- Show dropdown
+    characterDropdown:Show()
+end
+
+-- Hide dropdown when clicking elsewhere
+local function HideCharacterDropdown()
+    if characterDropdown then
+        characterDropdown:Hide()
+    end
+end
+
 -- Search changed handler
 function Guda_BagFrame_OnSearchChanged(self)
     local text = self:GetText()
@@ -785,6 +950,18 @@ function BagFrame:Initialize()
     addon.Modules.Events:OnMoneyChanged(function()
         BagFrame:UpdateMoney()
     end, "BagFrame")
+
+    -- Hide character dropdown when clicking on bag frame
+    local bagFrame = getglobal("Guda_BagFrame")
+    if bagFrame then
+        local originalOnMouseDown = bagFrame:GetScript("OnMouseDown")
+        bagFrame:SetScript("OnMouseDown", function()
+            HideCharacterDropdown()
+            if originalOnMouseDown then
+                originalOnMouseDown()
+            end
+        end)
+    end
 
     addon:Debug("Bag frame initialized")
 end

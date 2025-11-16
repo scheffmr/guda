@@ -110,11 +110,10 @@
                         </Layers>
                         <Scripts>
                             <OnLoad>
-                                -- Placeholder: Set texture file path here
                                 local icon = getglobal(this:GetName().."_Icon")
                                 if icon then
-                                    icon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
-                                    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                                    icon:SetTexture("Interface\\AddOns\\Guda\\Assets\\Sorting.png")
+                                    icon:SetTexCoord(0, 1, 0, 1)
                                 end
                             </OnLoad>
                             <OnClick>
@@ -160,12 +159,12 @@
                             <OnLoad>
                                 local icon = getglobal(this:GetName().."_Icon")
                                 if icon then
-                                    icon:SetTexture("Interface\\Icons\\INV_Misc_GroupNeedMore")
-                                    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                                    icon:SetTexture("Interface\\AddOns\\Guda\\Assets\\All_Characters.png")
+                                    icon:SetTexCoord(0, 1, 0, 1)
                                 end
                             </OnLoad>
                             <OnClick>
-                                Guda_CharacterSelector:Toggle()
+                                Guda_BagFrame_ToggleCharacterDropdown(this)
                             </OnClick>
                             <OnEnter>
                                 GameTooltip:SetOwner(this, "ANCHOR_TOP")
@@ -207,8 +206,8 @@
                             <OnLoad>
                                 local icon = getglobal(this:GetName().."_Icon")
                                 if icon then
-                                    icon:SetTexture("Interface\\Icons\\INV_Misc_Bag_09")
-                                    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                                    icon:SetTexture("Interface\\AddOns\\Guda\\Assets\\Chest.png")
+                                    icon:SetTexCoord(0, 1, 0, 1)
                                 end
                             </OnLoad>
                             <OnClick>
@@ -254,8 +253,8 @@
                             <OnLoad>
                                 local icon = getglobal(this:GetName().."_Icon")
                                 if icon then
-                                    icon:SetTexture("Interface\\Icons\\Trade_Engineering")
-                                    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                                    icon:SetTexture("Interface\\AddOns\\Guda\\Assets\\Cog.png")
+                                    icon:SetTexCoord(0, 1, 0, 1)
                                 end
                             </OnLoad>
                             <OnClick>

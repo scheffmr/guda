@@ -250,11 +250,33 @@ function Guda_ItemButton_OnEnter(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 
     if self.otherChar then
-        -- Viewing another character's item
+        -- Viewing another character's item - show full tooltip like the original
         if self.itemData.link then
-            GameTooltip:SetHyperlink(self.itemData.link)
-            GameTooltip:AddLine(" ")
-            GameTooltip:AddLine("|cFFFFFFFFOwned by: |cFF00FF96" .. self.otherChar .. "|r", 1, 1, 1)
+            -- Extract the hyperlink from the full item link
+            -- Item links are in format: |cFFFFFFFF|Hitem:1234:0:0:0|h[Item Name]|h|r
+            -- SetHyperlink needs just: item:1234:0:0:0
+            local _, _, hyperlink = strfind(self.itemData.link, "|H(.+)|h")
+
+            if hyperlink then
+                GameTooltip:SetHyperlink(hyperlink)
+                -- Add "Owned by" line after the original tooltip
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine("|cFFFFFFFFOwned by: |cFF00FF96" .. self.otherChar .. "|r", 1, 1, 1)
+            else
+                -- Fallback: try the full link
+                local success, err = pcall(function()
+                    GameTooltip:SetHyperlink(self.itemData.link)
+                end)
+
+                if success then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine("|cFFFFFFFFOwned by: |cFF00FF96" .. self.otherChar .. "|r", 1, 1, 1)
+                else
+                    -- Last resort: show item name
+                    GameTooltip:AddLine(self.itemData.name or "Unknown Item", 1, 1, 1)
+                    GameTooltip:AddLine("|cFFFFFFFFOwned by: |cFF00FF96" .. self.otherChar .. "|r", 1, 1, 1)
+                end
+            end
         end
     else
         -- Current character's item
