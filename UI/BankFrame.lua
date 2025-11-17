@@ -21,20 +21,11 @@ function Guda_BankFrame_OnLoad(self)
     end
 
     addon:Debug("Bank frame loaded")
-    if DEFAULT_CHAT_FRAME then
-        DEFAULT_CHAT_FRAME:AddMessage("Guda debug: Guda_BankFrame_OnLoad fired")
-    else
-        print("Guda debug: Guda_BankFrame_OnLoad fired")
-    end
 end
 
 -- OnShow
 function Guda_BankFrame_OnShow(self)
-    if DEFAULT_CHAT_FRAME then
-        DEFAULT_CHAT_FRAME:AddMessage("Guda debug: Guda_BankFrame_OnShow fired (readOnly="..tostring(isReadOnlyMode)..", currentViewChar="..tostring(currentViewChar)..")")
-    else
-        print("Guda debug: Guda_BankFrame_OnShow fired")
-    end
+    addon:Debug("Bank frame OnShow (readOnly=%s, currentViewChar=%s)", tostring(isReadOnlyMode), tostring(currentViewChar))
     if BankFrame.EnsureBagButtonsInitialized then
         BankFrame:EnsureBagButtonsInitialized()
     end
@@ -703,7 +694,7 @@ end
 function BankFrame:GetBankInvSlotForBagID(bagID)
     if not bagID or bagID == -1 then return nil, nil end
     local bankButtonID = bagID - 4
-    -- Some clients accept bagID, but Vanilla expects bankButtonID with isBag=1
+    -- TurtleWoW (and your environment) expect passing bagID (5..10) with isBank=1
     local invSlot = BankButtonIDToInvSlotID(bagID, 1)
     return invSlot, bankButtonID
 end
@@ -786,10 +777,8 @@ end
 function Guda_BankBagSlot_OnLoad(button, bagID)
     -- Debug: bag slot OnLoad
     local btnName = (button and button.GetName) and button:GetName() or tostring(button)
-    if DEFAULT_CHAT_FRAME then
-        DEFAULT_CHAT_FRAME:AddMessage("Guda debug: Guda_BankBagSlot_OnLoad for "..tostring(btnName).." bagID="..tostring(bagID))
-    else
-        print("Guda debug: Guda_BankBagSlot_OnLoad")
+    if addon and addon.DEBUG then
+        addon:Debug("BankBagSlot_OnLoad %s bagID=%s", tostring(btnName), tostring(bagID))
     end
     -- Hide borders from ItemButtonTemplate
     local buttonName = button:GetName()
@@ -864,10 +853,8 @@ end
 function Guda_BankBagSlot_Update(button, bagID)
     -- Debug: function initialization
     local btnName = (button and button.GetName) and button:GetName() or tostring(button)
-    if DEFAULT_CHAT_FRAME then
-        DEFAULT_CHAT_FRAME:AddMessage("Guda debug: Guda_BankBagSlot_Update init for "..tostring(btnName).." bagID="..tostring(bagID))
-    else
-        print("Guda debug: Guda_BankBagSlot_Update init")
+    if addon and addon.DEBUG then
+        addon:Debug("BankBagSlot_Update init for %s bagID=%s", tostring(btnName), tostring(bagID))
     end
     local isHidden = hiddenBankBags[bagID]
 
@@ -886,19 +873,19 @@ function Guda_BankBagSlot_Update(button, bagID)
 
     -- Bank bag slots 5-10 correspond to bank buttons 1-6
     local bankButtonID = bagID - 4
-    -- In 1.12, BankButtonIDToInvSlotID needs second arg = 1 for bank bag slots
-    local invSlot = BankButtonIDToInvSlotID(bagID, 1)
+    -- Centralized mapping to inventory slot (TurtleWoW: pass bagID; helper also returns bankButtonID)
+    local invSlot = BankFrame:GetBankInvSlotForBagID(bagID)
 
     -- Check if this slot is purchased
     local numSlots = GetNumBankSlots()
     local isPurchased = (bankButtonID <= numSlots)
 
     -- Get bag texture directly from inventory (more reliable on 1.12)
-    local texture = GetInventoryItemTexture("player", invSlot)
+    local texture = invSlot and GetInventoryItemTexture("player", invSlot) or nil
 
-    -- Debug details for diagnosis
-    if DEFAULT_CHAT_FRAME then
-        DEFAULT_CHAT_FRAME:AddMessage("Guda debug: bag="..tostring(bagID).." bankBtn="..tostring(bankButtonID).." invSlot="..tostring(invSlot).." purchased="..tostring(isPurchased).." tex="..tostring(texture))
+    -- Debug details for diagnosis (DEBUG only)
+    if addon and addon.DEBUG then
+        addon:Debug("BankBagSlot_Update details bag=%s bankBtn=%s invSlot=%s purchased=%s tex=%s", tostring(bagID), tostring(bankButtonID), tostring(invSlot), tostring(isPurchased), tostring(texture))
     end
 
     if texture then
