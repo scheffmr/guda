@@ -510,22 +510,6 @@
                 </Frames>
             </Frame>
 
-            <!-- Money Display Frame (bottom right) -->
-            <MoneyFrame name="$parent_MoneyFrame" inherits="SmallMoneyFrameTemplate">
-                <Size x="180" y="35"/>
-                <Anchors>
-                    <Anchor point="BOTTOMRIGHT" relativeTo="Guda_BankFrame" relativePoint="BOTTOMRIGHT">
-                        <Offset x="-15" y="5"/>
-                    </Anchor>
-                </Anchors>
-                <Scripts>
-                    <OnLoad>
-                        -- Set tooltip handlers on money button children
-                        Guda_BankFrame_MoneyFrame_OnLoad(this)
-                    </OnLoad>
-                </Scripts>
-            </MoneyFrame>
-
             <!-- Container for item buttons -->
             <Frame name="$parent_ItemContainer" enableMouse="true">
                 <Size>

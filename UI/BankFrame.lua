@@ -27,6 +27,12 @@ function Guda_BankFrame_OnShow(self)
     if BankFrame.EnsureBagButtonsInitialized then
         BankFrame:EnsureBagButtonsInitialized()
     end
+    -- Enforce MoneyFrame bottom margin in case any runtime code repositions it
+    local moneyFrame = getglobal("Guda_BankFrame_MoneyFrame")
+    if moneyFrame and moneyFrame.ClearAllPoints and moneyFrame.SetPoint then
+        moneyFrame:ClearAllPoints()
+        moneyFrame:SetPoint("BOTTOMRIGHT", Guda_BankFrame, "BOTTOMRIGHT", -15, 10)
+    end
     BankFrame:Update()
 end
 
@@ -322,7 +328,7 @@ end
 -- Create MoneyFrame if it doesn't exist
 function BankFrame:CreateMoneyFrame()
     local moneyFrame = CreateFrame("Frame", "Guda_BankFrame_MoneyFrame", Guda_BankFrame, "SmallMoneyFrameTemplate")
-    moneyFrame:SetPoint("BOTTOMRIGHT", Guda_BankFrame, "BOTTOMRIGHT", -15, 5)
+    moneyFrame:SetPoint("BOTTOMRIGHT", Guda_BankFrame, "BOTTOMRIGHT", -15, 7)
     moneyFrame:SetWidth(180)
     moneyFrame:SetHeight(35)
 

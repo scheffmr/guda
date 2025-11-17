@@ -281,7 +281,7 @@
                         <Anchors>
                             <Anchor point="LEFT">
                                 <Offset>
-                                    <AbsDimension x="13" y="0"/>
+                                    <AbsDimension x="13" y="3"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
