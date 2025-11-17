@@ -11,7 +11,8 @@ local nextButtonID = 1
 function Guda_GetItemButton(parent)
     -- Try to reuse existing button
     for _, button in pairs(buttonPool) do
-        if not button:IsShown() and button:GetParent() == parent then
+        -- Skip bag slot buttons
+        if not button.isBagSlot and not button:IsShown() and button:GetParent() == parent then
             return button
         end
     end

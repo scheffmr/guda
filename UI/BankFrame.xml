@@ -283,15 +283,204 @@
                 </Scripts>
 
                 <Frames>
+                    <!-- Main Bank Bag Button (bag -1) -->
+                    <Button name="$parent_BankBagMain" inherits="ItemButtonTemplate">
+                        <Size>
+                            <AbsDimension x="24" y="24"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="LEFT">
+                                <Offset>
+                                    <AbsDimension x="13" y="0"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnLoad>
+                                Guda_BankBagSlot_OnLoad(this, -1)
+                            </OnLoad>
+                            <OnEnter>
+                                Guda_BankBagSlot_OnEnter(this, -1)
+                                Guda_BankFrame_HighlightBagSlots(-1)
+                            </OnEnter>
+                            <OnLeave>
+                                GameTooltip:Hide()
+                                Guda_BankFrame_ClearHighlightedSlots()
+                            </OnLeave>
+                        </Scripts>
+                    </Button>
+
+                    <!-- Bank Bag Slot 5 -->
+                    <Button name="$parent_BankBag5" inherits="ItemButtonTemplate">
+                        <Size>
+                            <AbsDimension x="24" y="24"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BankBagMain">
+                                <Offset>
+                                    <AbsDimension x="2" y="0"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnLoad>
+                                Guda_BankBagSlot_OnLoad(this, 5)
+                            </OnLoad>
+                            <OnEnter>
+                                Guda_BankBagSlot_OnEnter(this, 5)
+                                Guda_BankFrame_HighlightBagSlots(5)
+                            </OnEnter>
+                            <OnLeave>
+                                GameTooltip:Hide()
+                                Guda_BankFrame_ClearHighlightedSlots()
+                            </OnLeave>
+                        </Scripts>
+                    </Button>
+
+                    <!-- Bank Bag Slot 6 -->
+                    <Button name="$parent_BankBag6" inherits="ItemButtonTemplate">
+                        <Size>
+                            <AbsDimension x="24" y="24"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BankBag5">
+                                <Offset>
+                                    <AbsDimension x="2" y="0"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnLoad>
+                                Guda_BankBagSlot_OnLoad(this, 6)
+                            </OnLoad>
+                            <OnEnter>
+                                Guda_BankBagSlot_OnEnter(this, 6)
+                                Guda_BankFrame_HighlightBagSlots(6)
+                            </OnEnter>
+                            <OnLeave>
+                                GameTooltip:Hide()
+                                Guda_BankFrame_ClearHighlightedSlots()
+                            </OnLeave>
+                        </Scripts>
+                    </Button>
+
+                    <!-- Bank Bag Slot 7 -->
+                    <Button name="$parent_BankBag7" inherits="ItemButtonTemplate">
+                        <Size>
+                            <AbsDimension x="24" y="24"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BankBag6">
+                                <Offset>
+                                    <AbsDimension x="2" y="0"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnLoad>
+                                Guda_BankBagSlot_OnLoad(this, 7)
+                            </OnLoad>
+                            <OnEnter>
+                                Guda_BankBagSlot_OnEnter(this, 7)
+                                Guda_BankFrame_HighlightBagSlots(7)
+                            </OnEnter>
+                            <OnLeave>
+                                GameTooltip:Hide()
+                                Guda_BankFrame_ClearHighlightedSlots()
+                            </OnLeave>
+                        </Scripts>
+                    </Button>
+
+                    <!-- Bank Bag Slot 8 -->
+                    <Button name="$parent_BankBag8" inherits="ItemButtonTemplate">
+                        <Size>
+                            <AbsDimension x="24" y="24"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BankBag7">
+                                <Offset>
+                                    <AbsDimension x="2" y="0"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnLoad>
+                                Guda_BankBagSlot_OnLoad(this, 8)
+                            </OnLoad>
+                            <OnEnter>
+                                Guda_BankBagSlot_OnEnter(this, 8)
+                                Guda_BankFrame_HighlightBagSlots(8)
+                            </OnEnter>
+                            <OnLeave>
+                                GameTooltip:Hide()
+                                Guda_BankFrame_ClearHighlightedSlots()
+                            </OnLeave>
+                        </Scripts>
+                    </Button>
+
+                    <!-- Bank Bag Slot 9 -->
+                    <Button name="$parent_BankBag9" inherits="ItemButtonTemplate">
+                        <Size>
+                            <AbsDimension x="24" y="24"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BankBag8">
+                                <Offset>
+                                    <AbsDimension x="2" y="0"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnLoad>
+                                Guda_BankBagSlot_OnLoad(this, 9)
+                            </OnLoad>
+                            <OnEnter>
+                                Guda_BankBagSlot_OnEnter(this, 9)
+                                Guda_BankFrame_HighlightBagSlots(9)
+                            </OnEnter>
+                            <OnLeave>
+                                GameTooltip:Hide()
+                                Guda_BankFrame_ClearHighlightedSlots()
+                            </OnLeave>
+                        </Scripts>
+                    </Button>
+
+                    <!-- Bank Bag Slot 10 -->
+                    <Button name="$parent_BankBag10" inherits="ItemButtonTemplate">
+                        <Size>
+                            <AbsDimension x="24" y="24"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BankBag9">
+                                <Offset>
+                                    <AbsDimension x="2" y="0"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnLoad>
+                                Guda_BankBagSlot_OnLoad(this, 10)
+                            </OnLoad>
+                            <OnEnter>
+                                Guda_BankBagSlot_OnEnter(this, 10)
+                                Guda_BankFrame_HighlightBagSlots(10)
+                            </OnEnter>
+                            <OnLeave>
+                                GameTooltip:Hide()
+                                Guda_BankFrame_ClearHighlightedSlots()
+                            </OnLeave>
+                        </Scripts>
+                    </Button>
+
                     <!-- Bank Slots Info Text -->
                     <Frame name="$parent_BankSlotsInfo">
                         <Size>
                             <AbsDimension x="100" y="24"/>
                         </Size>
                         <Anchors>
-                            <Anchor point="LEFT">
+                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BankBag10">
                                 <Offset>
-                                    <AbsDimension x="13" y="3"/>
+                                    <AbsDimension x="8" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>

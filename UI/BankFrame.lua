@@ -9,6 +9,7 @@ addon.Modules.BankFrame = BankFrame
 local currentViewChar = nil
 local searchText = ""
 local isReadOnlyMode = false  -- Track if viewing saved bank (read-only) or live bank (interactive)
+local hiddenBankBags = {} -- Track which bank bags are hidden (bagID -> true/false)
 
 -- OnLoad
 function Guda_BankFrame_OnLoad(self)
@@ -20,10 +21,23 @@ function Guda_BankFrame_OnLoad(self)
     end
 
     addon:Debug("Bank frame loaded")
+    if DEFAULT_CHAT_FRAME then
+        DEFAULT_CHAT_FRAME:AddMessage("Guda debug: Guda_BankFrame_OnLoad fired")
+    else
+        print("Guda debug: Guda_BankFrame_OnLoad fired")
+    end
 end
 
 -- OnShow
 function Guda_BankFrame_OnShow(self)
+    if DEFAULT_CHAT_FRAME then
+        DEFAULT_CHAT_FRAME:AddMessage("Guda debug: Guda_BankFrame_OnShow fired (readOnly="..tostring(isReadOnlyMode)..", currentViewChar="..tostring(currentViewChar)..")")
+    else
+        print("Guda debug: Guda_BankFrame_OnShow fired")
+    end
+    if BankFrame.EnsureBagButtonsInitialized then
+        BankFrame:EnsureBagButtonsInitialized()
+    end
     BankFrame:Update()
 end
 
@@ -137,20 +151,22 @@ function BankFrame:DisplayItems(bankData, isOtherChar, charName)
     local itemContainer = getglobal("Guda_BankFrame_ItemContainer")
 
     for _, bagID in ipairs(addon.Constants.BANK_BAGS) do
-        local bag = bankData[bagID]
+        -- Skip bags that are hidden
+        if not hiddenBankBags[bagID] then
+            local bag = bankData[bagID]
 
-        -- Get slot count for this bag
-        local numSlots
-        if isOtherChar and bag and bag.numSlots then
-            -- Use stored slot count for other characters
-            numSlots = bag.numSlots
-        else
-            -- Use current character's bag slot count
-            numSlots = addon.Modules.Utils:GetBagSlotCount(bagID)
-        end
+            -- Get slot count for this bag
+            local numSlots
+            if isOtherChar and bag and bag.numSlots then
+                -- Use stored slot count for other characters
+                numSlots = bag.numSlots
+            else
+                -- Use current character's bag slot count
+                numSlots = addon.Modules.Utils:GetBagSlotCount(bagID)
+            end
 
-        -- Only show bags that have slots
-        if numSlots and numSlots > 0 then
+            -- Only show bags that have slots
+            if numSlots and numSlots > 0 then
             -- Iterate through ALL slots (1 to numSlots) to show empty slots too
             for slot = 1, numSlots do
                 local itemData = bag and bag.slots and bag.slots[slot] or nil
@@ -159,6 +175,12 @@ function BankFrame:DisplayItems(bankData, isOtherChar, charName)
                 local matchesFilter = self:PassesSearchFilter(itemData)
 
                 local button = Guda_GetItemButton(itemContainer)
+
+                -- Ensure this is NOT a bag slot button
+                if button.isBagSlot then
+                    addon:Debug("WARNING: Got a bag slot button from item pool, skipping!")
+                    break
+                end
 
                 -- Position button
                 local xPos = x + (col * (buttonSize + spacing))
@@ -177,6 +199,7 @@ function BankFrame:DisplayItems(bankData, isOtherChar, charName)
                     col = 0
                     row = row + 1
                 end
+            end
             end
         end
     end
@@ -603,6 +626,65 @@ function BankFrame:ShowGudaButton()
     end
 end
 
+-- Ensure bank bag buttons are present; create them if XML did not
+function BankFrame:EnsureBagButtonsInitialized()
+    local toolbar = getglobal("Guda_BankFrame_Toolbar")
+    if not toolbar then return end
+
+    local function ensureButton(suffix, bagID)
+        local name = "Guda_BankFrame_Toolbar_" .. suffix
+        local btn = getglobal(name)
+        if not btn then
+            btn = CreateFrame("Button", name, toolbar, "ItemButtonTemplate")
+            -- Anchor sequenced to the left; position similar to XML
+            if suffix == "BankBagMain" then
+                btn:SetSize(24, 24)
+                btn:SetPoint("LEFT", toolbar, "LEFT", 13, 0)
+            else
+                -- Determine previous button
+                local prev
+                if bagID == 5 then prev = getglobal("Guda_BankFrame_Toolbar_BankBagMain")
+                else prev = getglobal("Guda_BankFrame_Toolbar_BankBag"..tostring(bagID-1)) end
+                btn:SetSize(24, 24)
+                if prev then
+                    btn:SetPoint("LEFT", prev, "RIGHT", 2, 0)
+                else
+                    btn:SetPoint("LEFT", toolbar, "LEFT", 13, 0)
+                end
+            end
+
+            -- Hook mouseover tooltip like XML
+            btn:SetScript("OnEnter", function()
+                Guda_BankBagSlot_OnEnter(this, bagID)
+                Guda_BankFrame_HighlightBagSlots(bagID)
+            end)
+            btn:SetScript("OnLeave", function()
+                GameTooltip:Hide()
+                Guda_BankFrame_ClearHighlightedSlots()
+            end)
+        end
+
+        -- Run our OnLoad logic (will also register events and initial update)
+        Guda_BankBagSlot_OnLoad(btn, bagID)
+        return btn
+    end
+
+    -- Main (-1) and 5..10
+    ensureButton("BankBagMain", -1)
+    for bagID=5,10 do
+        ensureButton("BankBag"..tostring(bagID), bagID)
+    end
+end
+
+-- Helper: map bank bagID (5..10) to bankButtonID (1..6) and inventory slot id (Vanilla requires second arg = 1)
+function BankFrame:GetBankInvSlotForBagID(bagID)
+    if not bagID or bagID == -1 then return nil, nil end
+    local bankButtonID = bagID - 4
+    -- Some clients accept bagID, but Vanilla expects bankButtonID with isBag=1
+    local invSlot = BankButtonIDToInvSlotID(bankButtonID, 1)
+    return invSlot, bankButtonID
+end
+
 -- Initialize
 function BankFrame:Initialize()
     -- Hide Blizzard bank frame on load (pfUI style)
@@ -615,6 +697,11 @@ function BankFrame:Initialize()
     
     -- Create Guda button on Blizzard BankFrame
     self:CreateGudaButtonOnBlizzardUI()
+
+    -- Ensure our bank bag buttons exist even if XML failed to create them
+    if self.EnsureBagButtonsInitialized then
+        self:EnsureBagButtonsInitialized()
+    end
 
     -- Update when bank is opened
     addon.Modules.Events:OnBankOpen(function()
@@ -635,6 +722,7 @@ function BankFrame:Initialize()
                     customBankFrame:Show()
                 end
 
+                addon.Modules.BankFrame:EnsureBagButtonsInitialized()
                 addon.Modules.BankFrame:Update()
             end
         end)
@@ -667,4 +755,267 @@ function BankFrame:Initialize()
     end)
 
     addon:Debug("Bank frame initialized")
+end
+
+-- Bank Bag Slot Button Handlers
+
+-- OnLoad handler for bank bag slot buttons
+function Guda_BankBagSlot_OnLoad(button, bagID)
+    -- Debug: bag slot OnLoad
+    local btnName = (button and button.GetName) and button:GetName() or tostring(button)
+    if DEFAULT_CHAT_FRAME then
+        DEFAULT_CHAT_FRAME:AddMessage("Guda debug: Guda_BankBagSlot_OnLoad for "..tostring(btnName).." bagID="..tostring(bagID))
+    else
+        print("Guda debug: Guda_BankBagSlot_OnLoad")
+    end
+    -- Hide borders from ItemButtonTemplate
+    local buttonName = button:GetName()
+    -- Hide the normal texture border
+    local normalTexture = getglobal(buttonName .. "NormalTexture")
+    if normalTexture then
+        normalTexture:SetTexture(nil)
+        normalTexture:Hide()
+    end
+
+    -- Hide icon border
+    local iconBorder = getglobal(buttonName .. "IconBorder")
+    if iconBorder then
+        iconBorder:Hide()
+    end
+
+    -- Mark this as a bag slot button, NOT an item button
+    button.isBagSlot = true
+    button.hasItem = nil
+
+    -- Set up the button with proper ID
+    button.bagID = bagID
+
+    -- Set the inventory slot ID so the button knows which slot it represents
+    if bagID ~= -1 then
+        local bankButtonID = bagID - 4
+        -- In 1.12 need the second arg = 1 for bank bag inventory slots
+        local invSlot = BankButtonIDToInvSlotID(bagID, 1)
+        button:SetID(invSlot)
+    end
+
+    -- Register for updates
+    button:RegisterEvent("PLAYERBANKBAGSLOTS_CHANGED")
+    button:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
+    button:RegisterEvent("ITEM_LOCK_CHANGED")
+    button:RegisterEvent("PLAYER_MONEY")
+    button:SetScript("OnEvent", function()
+        Guda_BankBagSlot_Update(this, this.bagID)
+    end)
+
+    -- Initial update
+    Guda_BankBagSlot_Update(button, bagID)
+end
+
+-- Update bank bag slot button texture
+function Guda_BankBagSlot_Update(button, bagID)
+    -- Debug: function initialization
+    local btnName = (button and button.GetName) and button:GetName() or tostring(button)
+    if DEFAULT_CHAT_FRAME then
+        DEFAULT_CHAT_FRAME:AddMessage("Guda debug: Guda_BankBagSlot_Update init for "..tostring(btnName).." bagID="..tostring(bagID))
+    else
+        print("Guda debug: Guda_BankBagSlot_Update init")
+    end
+    local isHidden = hiddenBankBags[bagID]
+
+    if bagID == -1 then
+        -- Main bank bag - use bank icon
+        SetItemButtonTexture(button, "Interface\\Buttons\\Button-Backpack-Up")
+        -- Dim if hidden
+        if isHidden then
+            SetItemButtonTextureVertexColor(button, 0.4, 0.4, 0.4)
+        else
+            SetItemButtonTextureVertexColor(button, 1.0, 1.0, 1.0)
+        end
+        button:Show()
+        return
+    end
+
+    -- Bank bag slots 5-10 correspond to bank buttons 1-6
+    local bankButtonID = bagID - 4
+    -- In 1.12, BankButtonIDToInvSlotID needs second arg = 1 for bank bag slots
+    local invSlot = BankButtonIDToInvSlotID(bagID, 1)
+
+    -- Check if this slot is purchased
+    local numSlots = GetNumBankSlots()
+    local isPurchased = (bankButtonID <= numSlots)
+
+    -- Get bag texture directly from inventory (more reliable on 1.12)
+    local texture = GetInventoryItemTexture("player", invSlot)
+
+    -- Debug details for diagnosis
+    if DEFAULT_CHAT_FRAME then
+        DEFAULT_CHAT_FRAME:AddMessage("Guda debug: bag="..tostring(bagID).." bankBtn="..tostring(bankButtonID).." invSlot="..tostring(invSlot).." purchased="..tostring(isPurchased).." tex="..tostring(texture))
+    end
+
+    if texture then
+        -- Bag is equipped in this slot and we have the texture
+        SetItemButtonTexture(button, texture)
+        -- Dim if hidden
+        if isHidden then
+            SetItemButtonTextureVertexColor(button, 0.4, 0.4, 0.4)
+        else
+            SetItemButtonTextureVertexColor(button, 1.0, 1.0, 1.0)
+        end
+
+        -- Set texture coordinates to crop the icon (1.12 uses IconTexture)
+        local icon = getglobal(button:GetName() .. "IconTexture") or getglobal(button:GetName() .. "Icon")
+        if icon then
+            icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        end
+
+        button:Show()
+    elseif isPurchased then
+        -- Slot is purchased but no bag equipped
+        SetItemButtonTexture(button, "Interface\\PaperDoll\\UI-PaperDoll-Slot-Bag")
+        SetItemButtonTextureVertexColor(button, 1.0, 1.0, 1.0)
+        button:Show()
+    else
+        -- Slot not purchased - show locked/greyed placeholder
+        SetItemButtonTexture(button, "Interface\\PaperDoll\\UI-PaperDoll-Slot-Bag")
+        SetItemButtonTextureVertexColor(button, 0.5, 0.5, 0.5)
+        button:Show()
+    end
+end
+
+-- OnClick handler for bank bag slots
+function Guda_BankBagSlot_OnClick(button, bagID)
+    -- Shift-click: Purchase slot or equip/remove bag (original behavior)
+    if IsShiftKeyDown() then
+        local bankButtonID = bagID - 4
+        local numSlots = GetNumBankSlots()
+        local isPurchased = (bankButtonID <= numSlots)
+        local invSlot = BankFrame:GetBankInvSlotForBagID(bagID)
+
+        if bagID == -1 then
+            return -- Can't interact with main bank bag
+        end
+
+        if not isPurchased then
+            -- Slot not purchased - try to purchase it
+            StaticPopup_Show("CONFIRM_BUY_BANK_SLOT")
+        else
+            -- Slot is purchased - handle bag equipping/removing
+            if CursorHasItem() then
+                PickupInventoryItem(invSlot)
+            else
+                local hasItem = GetInventoryItemTexture("player", invSlot)
+                if hasItem then
+                    PickupInventoryItem(invSlot)
+                end
+            end
+        end
+        return
+    end
+
+    -- Regular click: Toggle bag visibility
+    hiddenBankBags[bagID] = not hiddenBankBags[bagID]
+
+    -- Update bag slot visual (dim/undim)
+    Guda_BankBagSlot_Update(button, bagID)
+
+    -- Refresh the bank display
+    BankFrame:Update()
+
+    addon:Debug(string.format("Bank bag %d visibility toggled: %s", bagID, hiddenBankBags[bagID] and "hidden" or "visible"))
+end
+
+-- OnEnter handler for tooltip
+function Guda_BankBagSlot_OnEnter(button, bagID)
+    GameTooltip:SetOwner(button, "ANCHOR_TOP")
+
+    if bagID == -1 then
+        -- Main bank bag tooltip
+        GameTooltip:SetText("Bank", 1.0, 1.0, 1.0)
+        local numSlots = 24
+        GameTooltip:AddLine(string.format("%d Slots", numSlots), 0.8, 0.8, 0.8)
+        if hiddenBankBags[bagID] then
+            GameTooltip:AddLine("(Hidden - Click to show)", 0.8, 0.5, 0.5)
+        else
+            GameTooltip:AddLine("(Click to hide)", 0.5, 0.8, 0.5)
+        end
+    else
+        local invSlot, bankButtonID = BankFrame:GetBankInvSlotForBagID(bagID)
+        local numSlots = GetNumBankSlots()
+        local isPurchased = (bankButtonID and bankButtonID <= numSlots)
+        local hasItem = invSlot and GetInventoryItemTexture("player", invSlot)
+
+        if DEFAULT_CHAT_FRAME then
+            DEFAULT_CHAT_FRAME:AddMessage("Guda debug: OnEnter bag="..tostring(bagID).." bankBtn="..tostring(bankButtonID).." invSlot="..tostring(invSlot).." hasItem="..tostring(hasItem ~= nil))
+        end
+
+        if hasItem then
+            -- Show bag item tooltip
+            GameTooltip:SetInventoryItem("player", invSlot)
+            if hiddenBankBags[bagID] then
+                GameTooltip:AddLine("(Hidden - Click to show)", 0.8, 0.5, 0.5)
+            else
+                GameTooltip:AddLine("(Click to hide)", 0.5, 0.8, 0.5)
+            end
+        elseif isPurchased then
+            -- Empty purchased slot
+            GameTooltip:SetText(string.format("Bank Bag Slot %d", bankButtonID or -1), 1.0, 1.0, 1.0)
+            GameTooltip:AddLine("Empty", 0.8, 0.8, 0.8)
+            GameTooltip:AddLine("Shift+Click to equip bag", 0.5, 0.5, 0.5)
+        else
+            -- Unpurchased slot
+            GameTooltip:SetText(string.format("Bank Bag Slot %d", bankButtonID or -1), 1.0, 1.0, 1.0)
+            local cost = GetBankSlotCost(numSlots)
+            GameTooltip:AddLine("Shift+Click to purchase", 0.5, 1.0, 0.5)
+            GameTooltip:AddLine(addon.Modules.Utils:FormatMoney(cost, false, true), 1, 1, 1)
+        end
+    end
+
+    GameTooltip:Show()
+end
+
+-- Highlight all item slots belonging to a specific bank bag by dimming others
+function Guda_BankFrame_HighlightBagSlots(bagID)
+    local itemContainer = getglobal("Guda_BankFrame_ItemContainer")
+    if not itemContainer then
+        addon:Debug("BankFrame HighlightBagSlots: itemContainer not found")
+        return
+    end
+
+    local highlightCount = 0
+    local dimCount = 0
+
+    -- Iterate through all children (item buttons)
+    local children = { itemContainer:GetChildren() }
+    for _, button in ipairs(children) do
+        -- Check if this is an item button
+        if button.hasItem ~= nil and button:IsShown() and not button.isBagSlot then
+            if button.bagID == bagID then
+                -- This button belongs to the hovered bag - keep it bright
+                button:SetAlpha(1.0)
+                highlightCount = highlightCount + 1
+            else
+                -- This button belongs to a different bag - dim it
+                button:SetAlpha(0.25)
+                dimCount = dimCount + 1
+            end
+        end
+    end
+
+    addon:Debug(string.format("BankFrame HighlightBagSlots: Highlighted %d slots, dimmed %d slots for bagID %d", highlightCount, dimCount, bagID))
+end
+
+-- Clear all highlighting by restoring full opacity to all slots
+function Guda_BankFrame_ClearHighlightedSlots()
+    local itemContainer = getglobal("Guda_BankFrame_ItemContainer")
+    if not itemContainer then return end
+
+    -- Iterate through all children (item buttons)
+    local children = { itemContainer:GetChildren() }
+    for _, button in ipairs(children) do
+        -- Check if this is an item button
+        if button.hasItem ~= nil and button:IsShown() and not button.isBagSlot then
+            -- Restore full opacity
+            button:SetAlpha(1.0)
+        end
+    end
 end
