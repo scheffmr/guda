@@ -318,7 +318,7 @@
                         <Anchors>
                             <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BankBagMain">
                                 <Offset>
-                                    <AbsDimension x="2" y="0"/>
+                                    <AbsDimension x="1" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
@@ -345,7 +345,7 @@
                         <Anchors>
                             <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BankBag5">
                                 <Offset>
-                                    <AbsDimension x="2" y="0"/>
+                                    <AbsDimension x="1" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
@@ -372,7 +372,7 @@
                         <Anchors>
                             <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BankBag6">
                                 <Offset>
-                                    <AbsDimension x="2" y="0"/>
+                                    <AbsDimension x="1" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
@@ -399,7 +399,7 @@
                         <Anchors>
                             <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BankBag7">
                                 <Offset>
-                                    <AbsDimension x="2" y="0"/>
+                                    <AbsDimension x="1" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
@@ -426,7 +426,7 @@
                         <Anchors>
                             <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BankBag8">
                                 <Offset>
-                                    <AbsDimension x="2" y="0"/>
+                                    <AbsDimension x="1" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
@@ -453,7 +453,7 @@
                         <Anchors>
                             <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BankBag9">
                                 <Offset>
-                                    <AbsDimension x="2" y="0"/>
+                                    <AbsDimension x="1" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>

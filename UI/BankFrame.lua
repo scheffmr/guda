@@ -770,19 +770,33 @@ end
 
 -- OnLoad handler for bank bag slot buttons
 function Guda_BankBagSlot_OnLoad(button, bagID)
-    -- Hide borders from ItemButtonTemplate
+    -- Configure border and icon inset for consistent look with main bank bag
     local buttonName = button:GetName()
-    -- Hide the normal texture border
+
+    -- Ensure the normal texture (border) is visible and uses the default quickslot border
     local normalTexture = getglobal(buttonName .. "NormalTexture")
     if normalTexture then
-        normalTexture:SetTexture(nil)
-        normalTexture:Hide()
+        normalTexture:SetTexture("Interface\\Buttons\\UI-Quickslot2")
+        normalTexture:ClearAllPoints()
+        normalTexture:SetPoint("CENTER", button, "CENTER", 0, -1)
+        normalTexture:SetWidth(35)
+        normalTexture:SetHeight(35)
+        normalTexture:Show()
     end
 
-    -- Hide icon border
+    -- If the template has an IconBorder, show it as well (some clients/templates provide this)
     local iconBorder = getglobal(buttonName .. "IconBorder")
     if iconBorder then
-        iconBorder:Hide()
+        iconBorder:Show()
+    end
+
+    -- Inset the icon slightly so equipped bag icons appear a bit smaller (match main bag feel)
+    local icon = getglobal(buttonName .. "IconTexture") or getglobal(buttonName .. "Icon")
+    if icon then
+        icon:ClearAllPoints()
+        icon:SetPoint("TOPLEFT", button, "TOPLEFT", 2, -2)
+        icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
+        icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     end
 
     -- Mark this as a bag slot button, NOT an item button
