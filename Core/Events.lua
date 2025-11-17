@@ -18,7 +18,6 @@ function Events:Register(event, callback, owner)
     if not callbacks[event] then
         callbacks[event] = {}
         eventFrame:RegisterEvent(event)
-        addon:Debug("Registered event: %s", event)
     end
 
     table.insert(callbacks[event], {
@@ -40,7 +39,6 @@ function Events:UnregisterOwner(owner)
         if table.getn(cbs) == 0 then
             eventFrame:UnregisterEvent(event)
             callbacks[event] = nil
-            addon:Debug("Unregistered event: %s", event)
         end
     end
 end

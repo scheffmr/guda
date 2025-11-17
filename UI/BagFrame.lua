@@ -59,7 +59,6 @@ function Guda_BagFrame_OnLoad(self)
         end)
     end
 
-    addon:Debug("Bag frame loaded")
 end
 
 
@@ -407,7 +406,6 @@ function BagFrame:UpdateMoney()
     local moneyFrame = getglobal("Guda_BagFrame_MoneyFrame")
 
     if not moneyFrame then
-        addon:Debug("MoneyFrame not found! Checking parent...")
         addon:Debug("Guda_BagFrame exists: " .. tostring(getglobal("Guda_BagFrame") ~= nil))
 
         -- Try to create it manually
@@ -1495,7 +1493,6 @@ function Guda_BagSlot_OnClick(button, bagID)
         -- Refresh the bag display
         BagFrame:Update()
 
-        addon:Debug(string.format("Bag %d visibility toggled via %s: %s", bagID, tostring(which), hiddenBags[bagID] and "hidden" or "visible"))
         return
     end
 
@@ -1562,7 +1559,6 @@ end
 function Guda_BagFrame_HighlightBagSlots(bagID)
     local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
     if not itemContainer then
-        addon:Debug("HighlightBagSlots: itemContainer not found")
         return
     end
 
@@ -1586,7 +1582,6 @@ function Guda_BagFrame_HighlightBagSlots(bagID)
         end
     end
 
-    addon:Debug(string.format("HighlightBagSlots: Highlighted %d slots, dimmed %d slots for bagID %d", highlightCount, dimCount, bagID))
 end
 
 -- Clear all highlighting by restoring full opacity to all slots

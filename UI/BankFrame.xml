@@ -311,7 +311,7 @@
                     </Button>
 
                     <!-- Bank Bag Slot 5 -->
-                    <Button name="$parent_BankBag5" inherits="ItemButtonTemplate" movable="true">
+                    <Button name="$parent_BankBag5" inherits="ItemButtonTemplate">
                         <Size>
                             <AbsDimension x="24" y="24"/>
                         </Size>

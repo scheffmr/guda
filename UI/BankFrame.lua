@@ -20,12 +20,10 @@ function Guda_BankFrame_OnLoad(self)
         searchBox:SetTextColor(0.5, 0.5, 0.5, 1)
     end
 
-    addon:Debug("Bank frame loaded")
 end
 
 -- OnShow
 function Guda_BankFrame_OnShow(self)
-    addon:Debug("Bank frame OnShow (readOnly=%s, currentViewChar=%s)", tostring(isReadOnlyMode), tostring(currentViewChar))
     if BankFrame.EnsureBagButtonsInitialized then
         BankFrame:EnsureBagButtonsInitialized()
     end
@@ -169,7 +167,6 @@ function BankFrame:DisplayItems(bankData, isOtherChar, charName)
 
                 -- Ensure this is NOT a bag slot button
                 if button.isBagSlot then
-                    addon:Debug("WARNING: Got a bag slot button from item pool, skipping!")
                     break
                 end
 
@@ -606,7 +603,6 @@ function BankFrame:CreateGudaButtonOnBlizzardUI()
     -- Initially hide the button
     gudaButton:Hide()
     
-    addon:Debug("Guda button created on Blizzard BankFrame")
 end
 
 -- Show the Guda button on Blizzard UI
@@ -768,18 +764,12 @@ function BankFrame:Initialize()
         end
     end)
 
-    addon:Debug("Bank frame initialized")
 end
 
 -- Bank Bag Slot Button Handlers
 
 -- OnLoad handler for bank bag slot buttons
 function Guda_BankBagSlot_OnLoad(button, bagID)
-    -- Debug: bag slot OnLoad
-    local btnName = (button and button.GetName) and button:GetName() or tostring(button)
-    if addon and addon.DEBUG then
-        addon:Debug("BankBagSlot_OnLoad %s bagID=%s", tostring(btnName), tostring(bagID))
-    end
     -- Hide borders from ItemButtonTemplate
     local buttonName = button:GetName()
     -- Hide the normal texture border
@@ -851,11 +841,6 @@ end
 
 -- Update bank bag slot button texture
 function Guda_BankBagSlot_Update(button, bagID)
-    -- Debug: function initialization
-    local btnName = (button and button.GetName) and button:GetName() or tostring(button)
-    if addon and addon.DEBUG then
-        addon:Debug("BankBagSlot_Update init for %s bagID=%s", tostring(btnName), tostring(bagID))
-    end
     local isHidden = hiddenBankBags[bagID]
 
     if bagID == -1 then
@@ -883,10 +868,6 @@ function Guda_BankBagSlot_Update(button, bagID)
     -- Get bag texture directly from inventory (more reliable on 1.12)
     local texture = invSlot and GetInventoryItemTexture("player", invSlot) or nil
 
-    -- Debug details for diagnosis (DEBUG only)
-    if addon and addon.DEBUG then
-        addon:Debug("BankBagSlot_Update details bag=%s bankBtn=%s invSlot=%s purchased=%s tex=%s", tostring(bagID), tostring(bankButtonID), tostring(invSlot), tostring(isPurchased), tostring(texture))
-    end
 
     if texture then
         -- Bag is equipped in this slot and we have the texture
@@ -927,9 +908,6 @@ function Guda_BankBagSlot_OnClick(button, bagID, which)
         hiddenBankBags[bagID] = not hiddenBankBags[bagID]
         Guda_BankBagSlot_Update(button, bagID)
         BankFrame:Update()
-        if addon and addon.DEBUG then
-            addon:Debug(string.format("Bank bag %d visibility toggled via %s: %s", bagID, tostring(which), hiddenBankBags[bagID] and "hidden" or "visible"))
-        end
         return
     end
 
@@ -937,9 +915,6 @@ function Guda_BankBagSlot_OnClick(button, bagID, which)
         -- Equip bag from cursor into this bank bag slot (5-10) when bank open and purchased
         if bagID and bagID ~= -1 and CursorHasItem and CursorHasItem() then
             local invSlot, bankButtonID = BankFrame:GetBankInvSlotForBagID(bagID)
-            if addon and addon.DEBUG then
-                addon:Debug(string.format("OnClick LEFT bag=%s bankBtn=%s invSlot=%s bankOpen=%s purchased=%s cursorHas=%s", tostring(bagID), tostring(bankButtonID), tostring(invSlot), tostring(addon.Modules.BankScanner:IsBankOpen()), tostring(bankButtonID and bankButtonID <= GetNumBankSlots()), tostring(CursorHasItem())))
-            end
             if invSlot and addon.Modules.BankScanner:IsBankOpen() then
                 local purchased = (bankButtonID and bankButtonID <= GetNumBankSlots())
                 if purchased then
@@ -976,10 +951,6 @@ function Guda_BankBagSlot_OnEnter(button, bagID)
         local numSlots = GetNumBankSlots()
         local isPurchased = (bankButtonID and bankButtonID <= numSlots)
         local hasItem = invSlot and GetInventoryItemTexture("player", invSlot)
-
-        if DEFAULT_CHAT_FRAME then
-            DEFAULT_CHAT_FRAME:AddMessage("Guda debug: OnEnter bag="..tostring(bagID).." bankBtn="..tostring(bankButtonID).." invSlot="..tostring(invSlot).." hasItem="..tostring(hasItem ~= nil))
-        end
 
         if hasItem then
             -- Show bag item tooltip
@@ -1018,7 +989,6 @@ end
 function Guda_BankFrame_HighlightBagSlots(bagID)
     local itemContainer = getglobal("Guda_BankFrame_ItemContainer")
     if not itemContainer then
-        addon:Debug("BankFrame HighlightBagSlots: itemContainer not found")
         return
     end
 
