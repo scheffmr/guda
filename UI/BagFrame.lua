@@ -1338,6 +1338,22 @@ end
 
 -- OnLoad handler for bag slot buttons
 function Guda_BagSlot_OnLoad(button, bagID)
+    -- Hide borders from ItemButtonTemplate
+    local buttonName = button:GetName()
+
+    -- Hide the normal texture border
+    local normalTexture = getglobal(buttonName .. "NormalTexture")
+    if normalTexture then
+        normalTexture:SetTexture(nil)
+        normalTexture:Hide()
+    end
+
+    -- Hide icon border
+    local iconBorder = getglobal(buttonName .. "IconBorder")
+    if iconBorder then
+        iconBorder:Hide()
+    end
+
     -- Set up the button with proper ID
     -- For bags 1-4, we need to get the inventory slot ID
     if bagID == 0 then

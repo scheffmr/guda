@@ -281,7 +281,7 @@
                         <Anchors>
                             <Anchor point="LEFT">
                                 <Offset>
-                                    <AbsDimension x="15" y="0"/>
+                                    <AbsDimension x="13" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
@@ -405,7 +405,7 @@
                         <Anchors>
                             <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BagSlot4">
                                 <Offset>
-                                    <AbsDimension x="6" y="0"/>
+                                    <AbsDimension x="2" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
