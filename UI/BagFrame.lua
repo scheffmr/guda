@@ -1334,11 +1334,130 @@ local function DelayedHook()
     end)
 end
 
+-- Bag Slot Button Handlers
+
+-- OnLoad handler for bag slot buttons
+function Guda_BagSlot_OnLoad(button, bagID)
+    -- Set up the button with proper ID
+    -- For bags 1-4, we need to get the inventory slot ID
+    if bagID == 0 then
+        -- Backpack (bag 0) - set a special texture
+        button.bagID = 0
+        button.hasItem = 1
+        SetItemButtonTexture(button, "Interface\\Buttons\\Button-Backpack-Up")
+    else
+        -- Bags 1-4: Get inventory slot ID (19, 20, 21, 22)
+        local invSlot = ContainerIDToInventoryID(bagID)
+        button:SetID(invSlot)
+        button.bagID = bagID
+
+        -- Register for updates
+        button:RegisterEvent("BAG_UPDATE")
+        button:RegisterEvent("ITEM_LOCK_CHANGED")
+        button:RegisterEvent("CURSOR_UPDATE")
+        button:RegisterEvent("UNIT_INVENTORY_CHANGED")
+    end
+
+    -- Initial update
+    Guda_BagSlot_Update(button, bagID)
+end
+
+-- Update bag slot button texture
+function Guda_BagSlot_Update(button, bagID)
+    if bagID == 0 then
+        -- Backpack always has the same texture
+        SetItemButtonTexture(button, "Interface\\Buttons\\Button-Backpack-Up")
+        SetItemButtonTextureVertexColor(button, 1.0, 1.0, 1.0)
+        return
+    end
+
+    -- Get the inventory slot ID for this bag
+    local invSlot = ContainerIDToInventoryID(bagID)
+    local texture = GetInventoryItemTexture("player", invSlot)
+
+    if texture then
+        -- Bag is equipped
+        SetItemButtonTexture(button, texture)
+        SetItemButtonTextureVertexColor(button, 1.0, 1.0, 1.0)
+    else
+        -- No bag in this slot
+        SetItemButtonTexture(button, "Interface\\PaperDoll\\UI-PaperDoll-Slot-Bag")
+        SetItemButtonTextureVertexColor(button, 0.5, 0.5, 0.5)
+    end
+end
+
+-- OnEvent handler
+function Guda_BagSlot_OnEvent(button, event, arg1)
+    local bagID = button.bagID
+    if not bagID then
+        return
+    end
+
+    if event == "BAG_UPDATE" then
+        if arg1 == bagID then
+            Guda_BagSlot_Update(button, bagID)
+        end
+    elseif event == "UNIT_INVENTORY_CHANGED" then
+        if arg1 == "player" then
+            Guda_BagSlot_Update(button, bagID)
+        end
+    elseif event == "ITEM_LOCK_CHANGED" or event == "CURSOR_UPDATE" then
+        Guda_BagSlot_Update(button, bagID)
+    end
+end
+
+-- OnClick handler
+function Guda_BagSlot_OnClick(button, bagID)
+    if bagID == 0 then
+        -- Clicking backpack - do nothing special (it's always there)
+        return
+    end
+
+    -- Get the inventory slot for this bag
+    local invSlot = ContainerIDToInventoryID(bagID)
+
+    -- Check if cursor has an item
+    if CursorHasItem() then
+        -- Try to place item in this bag slot
+        PickupInventoryItem(invSlot)
+    else
+        -- Pick up the bag from this slot
+        PickupInventoryItem(invSlot)
+    end
+end
+
+-- OnEnter handler for tooltip
+function Guda_BagSlot_OnEnter(button, bagID)
+    GameTooltip:SetOwner(button, "ANCHOR_TOP")
+
+    if bagID == 0 then
+        -- Backpack tooltip
+        GameTooltip:SetText("Backpack", 1.0, 1.0, 1.0)
+        local numSlots = GetContainerNumSlots(0)
+        GameTooltip:AddLine(string.format("%d Slots", numSlots), 0.8, 0.8, 0.8)
+    else
+        -- Bag slot tooltip
+        local invSlot = ContainerIDToInventoryID(bagID)
+        local hasItem = GetInventoryItemTexture("player", invSlot)
+
+        if hasItem then
+            -- Show bag item tooltip
+            GameTooltip:SetInventoryItem("player", invSlot)
+        else
+            -- Empty slot
+            GameTooltip:SetText(string.format("Bag %d", bagID), 1.0, 1.0, 1.0)
+            GameTooltip:AddLine("Empty", 0.5, 0.5, 0.5)
+        end
+    end
+
+    GameTooltip:Show()
+end
+
 -- Initialize
 function BagFrame:Initialize()
     -- Hook default bag functions
     HookDefaultBags()
-    
+
     -- Delayed hook for bag containers (runs after UI loads)
     DelayedHook()
 

@@ -250,7 +250,7 @@
                 </Scripts>
             </Button>
 
-            <!-- Toolbar Container (for money tooltip, kept for compatibility) -->
+            <!-- Toolbar Container (for money tooltip and bag slots) -->
             <Frame name="$parent_Toolbar" enableMouse="true">
                 <Size>
                     <AbsDimension x="200" y="30"/>
@@ -273,15 +273,139 @@
                 </Scripts>
 
                 <Frames>
-                    <!-- Keyring Button (footer left) -->
-                    <Button name="$parent_KeyringButton">
+                    <!-- Bag Slot 1 -->
+                    <Button name="$parent_BagSlot1" inherits="ItemButtonTemplate">
                         <Size>
                             <AbsDimension x="24" y="24"/>
                         </Size>
                         <Anchors>
                             <Anchor point="LEFT">
                                 <Offset>
-                                    <AbsDimension x="13" y="3"/>
+                                    <AbsDimension x="15" y="0"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnLoad>
+                                Guda_BagSlot_OnLoad(this, 1)
+                            </OnLoad>
+                            <OnClick>
+                                Guda_BagSlot_OnClick(this, 1)
+                            </OnClick>
+                            <OnEnter>
+                                Guda_BagSlot_OnEnter(this, 1)
+                            </OnEnter>
+                            <OnLeave>
+                                GameTooltip:Hide()
+                            </OnLeave>
+                            <OnEvent>
+                                Guda_BagSlot_OnEvent(this, event, arg1)
+                            </OnEvent>
+                        </Scripts>
+                    </Button>
+
+                    <!-- Bag Slot 2 -->
+                    <Button name="$parent_BagSlot2" inherits="ItemButtonTemplate">
+                        <Size>
+                            <AbsDimension x="24" y="24"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BagSlot1">
+                                <Offset>
+                                    <AbsDimension x="2" y="0"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnLoad>
+                                Guda_BagSlot_OnLoad(this, 2)
+                            </OnLoad>
+                            <OnClick>
+                                Guda_BagSlot_OnClick(this, 2)
+                            </OnClick>
+                            <OnEnter>
+                                Guda_BagSlot_OnEnter(this, 2)
+                            </OnEnter>
+                            <OnLeave>
+                                GameTooltip:Hide()
+                            </OnLeave>
+                            <OnEvent>
+                                Guda_BagSlot_OnEvent(this, event, arg1)
+                            </OnEvent>
+                        </Scripts>
+                    </Button>
+
+                    <!-- Bag Slot 3 -->
+                    <Button name="$parent_BagSlot3" inherits="ItemButtonTemplate">
+                        <Size>
+                            <AbsDimension x="24" y="24"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BagSlot2">
+                                <Offset>
+                                    <AbsDimension x="2" y="0"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnLoad>
+                                Guda_BagSlot_OnLoad(this, 3)
+                            </OnLoad>
+                            <OnClick>
+                                Guda_BagSlot_OnClick(this, 3)
+                            </OnClick>
+                            <OnEnter>
+                                Guda_BagSlot_OnEnter(this, 3)
+                            </OnEnter>
+                            <OnLeave>
+                                GameTooltip:Hide()
+                            </OnLeave>
+                            <OnEvent>
+                                Guda_BagSlot_OnEvent(this, event, arg1)
+                            </OnEvent>
+                        </Scripts>
+                    </Button>
+
+                    <!-- Bag Slot 4 -->
+                    <Button name="$parent_BagSlot4" inherits="ItemButtonTemplate">
+                        <Size>
+                            <AbsDimension x="24" y="24"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BagSlot3">
+                                <Offset>
+                                    <AbsDimension x="2" y="0"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnLoad>
+                                Guda_BagSlot_OnLoad(this, 4)
+                            </OnLoad>
+                            <OnClick>
+                                Guda_BagSlot_OnClick(this, 4)
+                            </OnClick>
+                            <OnEnter>
+                                Guda_BagSlot_OnEnter(this, 4)
+                            </OnEnter>
+                            <OnLeave>
+                                GameTooltip:Hide()
+                            </OnLeave>
+                            <OnEvent>
+                                Guda_BagSlot_OnEvent(this, event, arg1)
+                            </OnEvent>
+                        </Scripts>
+                    </Button>
+
+                    <!-- Keyring Button -->
+                    <Button name="$parent_KeyringButton">
+                        <Size>
+                            <AbsDimension x="24" y="24"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BagSlot4">
+                                <Offset>
+                                    <AbsDimension x="6" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
