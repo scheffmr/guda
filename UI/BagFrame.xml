@@ -294,9 +294,11 @@
                             </OnClick>
                             <OnEnter>
                                 Guda_BagSlot_OnEnter(this, 1)
+                                Guda_BagFrame_HighlightBagSlots(1)
                             </OnEnter>
                             <OnLeave>
                                 GameTooltip:Hide()
+                                Guda_BagFrame_ClearHighlightedSlots()
                             </OnLeave>
                             <OnEvent>
                                 Guda_BagSlot_OnEvent(this, event, arg1)
@@ -325,9 +327,11 @@
                             </OnClick>
                             <OnEnter>
                                 Guda_BagSlot_OnEnter(this, 2)
+                                Guda_BagFrame_HighlightBagSlots(2)
                             </OnEnter>
                             <OnLeave>
                                 GameTooltip:Hide()
+                                Guda_BagFrame_ClearHighlightedSlots()
                             </OnLeave>
                             <OnEvent>
                                 Guda_BagSlot_OnEvent(this, event, arg1)
@@ -356,9 +360,11 @@
                             </OnClick>
                             <OnEnter>
                                 Guda_BagSlot_OnEnter(this, 3)
+                                Guda_BagFrame_HighlightBagSlots(3)
                             </OnEnter>
                             <OnLeave>
                                 GameTooltip:Hide()
+                                Guda_BagFrame_ClearHighlightedSlots()
                             </OnLeave>
                             <OnEvent>
                                 Guda_BagSlot_OnEvent(this, event, arg1)
@@ -387,9 +393,11 @@
                             </OnClick>
                             <OnEnter>
                                 Guda_BagSlot_OnEnter(this, 4)
+                                Guda_BagFrame_HighlightBagSlots(4)
                             </OnEnter>
                             <OnLeave>
                                 GameTooltip:Hide()
+                                Guda_BagFrame_ClearHighlightedSlots()
                             </OnLeave>
                             <OnEvent>
                                 Guda_BagSlot_OnEvent(this, event, arg1)
@@ -437,9 +445,11 @@
                                 GameTooltip:SetOwner(this, "ANCHOR_TOP")
                                 GameTooltip:SetText("Toggle Keyring")
                                 GameTooltip:Show()
+                                Guda_BagFrame_HighlightBagSlots(-2)
                             </OnEnter>
                             <OnLeave>
                                 GameTooltip:Hide()
+                                Guda_BagFrame_ClearHighlightedSlots()
                             </OnLeave>
                         </Scripts>
                     </Button>

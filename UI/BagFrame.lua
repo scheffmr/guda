@@ -1469,6 +1469,53 @@ function Guda_BagSlot_OnEnter(button, bagID)
     GameTooltip:Show()
 end
 
+-- Highlight all item slots belonging to a specific bag by dimming others
+function Guda_BagFrame_HighlightBagSlots(bagID)
+    local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
+    if not itemContainer then
+        addon:Debug("HighlightBagSlots: itemContainer not found")
+        return
+    end
+
+    local highlightCount = 0
+    local dimCount = 0
+
+    -- Iterate through all children (item buttons)
+    local children = { itemContainer:GetChildren() }
+    for _, button in ipairs(children) do
+        -- Check if this is an item button
+        if button.hasItem ~= nil and button:IsShown() then
+            if button.bagID == bagID then
+                -- This button belongs to the hovered bag - keep it bright
+                button:SetAlpha(1.0)
+                highlightCount = highlightCount + 1
+            else
+                -- This button belongs to a different bag - dim it
+                button:SetAlpha(0.25)
+                dimCount = dimCount + 1
+            end
+        end
+    end
+
+    addon:Debug(string.format("HighlightBagSlots: Highlighted %d slots, dimmed %d slots for bagID %d", highlightCount, dimCount, bagID))
+end
+
+-- Clear all highlighting by restoring full opacity to all slots
+function Guda_BagFrame_ClearHighlightedSlots()
+    local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
+    if not itemContainer then return end
+
+    -- Iterate through all children (item buttons)
+    local children = { itemContainer:GetChildren() }
+    for _, button in ipairs(children) do
+        -- Check if this is an item button
+        if button.hasItem ~= nil and button:IsShown() then
+            -- Restore full opacity
+            button:SetAlpha(1.0)
+        end
+    end
+end
+
 -- Initialize
 function BagFrame:Initialize()
     -- Hook default bag functions
