@@ -127,184 +127,241 @@ end
 function Tooltip:Initialize()
 	addon:Print("Initializing tooltip module...")
 
+	-- Helper function to defer vendor money so we can insert our Inventory block above it
+	local Orig_SetTooltipMoney = SetTooltipMoney
+	local function WithDeferredMoney(tooltip, buildFunc)
+		local queue = {}
+		-- Temporarily override global SetTooltipMoney
+		SetTooltipMoney = function(frame, money, a1, a2, a3, a4, a5)
+			if frame == tooltip then
+				tinsert(queue, {frame, money, a1, a2, a3, a4, a5})
+			else
+				Orig_SetTooltipMoney(frame, money, a1, a2, a3, a4, a5)
+			end
+		end
+
+		-- Perform the original population + our Inventory augmentation
+		local ret = buildFunc()
+
+		-- Restore and flush queued money so it appears after our Inventory block
+		SetTooltipMoney = Orig_SetTooltipMoney
+		for i = 1, getn(queue) do
+			local q = queue[i]
+			Orig_SetTooltipMoney(q[1], q[2], q[3], q[4], q[5], q[6], q[7])
+		end
+		return ret
+	end
+
 	-- Hook SetBagItem
 	local oldSetBagItem = GameTooltip.SetBagItem
 	function GameTooltip:SetBagItem(bag, slot)
-		local ret = oldSetBagItem(self, bag, slot)
-		local link = GetContainerItemLink(bag, slot)
-		if link then
-			Tooltip:AddInventoryInfo(self, link)
-		end
-		return ret
+		return WithDeferredMoney(self, function()
+			local ret = oldSetBagItem(self, bag, slot)
+			local link = GetContainerItemLink(bag, slot)
+			if link then
+				Tooltip:AddInventoryInfo(self, link)
+			end
+			return ret
+		end)
 	end
 
 	-- Hook SetHyperlink for chat links
 	local oldSetHyperlink = GameTooltip.SetHyperlink
 	function GameTooltip:SetHyperlink(link)
-		local ret = oldSetHyperlink(self, link)
-		if link and strfind(link, "item:") then
-			Tooltip:AddInventoryInfo(self, link)
-		end
-		return ret
+		return WithDeferredMoney(self, function()
+			local ret = oldSetHyperlink(self, link)
+			if link and strfind(link, "item:") then
+				Tooltip:AddInventoryInfo(self, link)
+			end
+			return ret
+		end)
 	end
 
 	-- Hook SetInventoryItem for character paperdoll
 	local oldSetInventoryItem = GameTooltip.SetInventoryItem
 	function GameTooltip:SetInventoryItem(unit, slot)
-		local ret = oldSetInventoryItem(self, unit, slot)
-		local link = GetInventoryItemLink(unit, slot)
-		if link then
-			Tooltip:AddInventoryInfo(self, link)
-		end
-		return ret
+		return WithDeferredMoney(self, function()
+			local ret = oldSetInventoryItem(self, unit, slot)
+			local link = GetInventoryItemLink(unit, slot)
+			if link then
+				Tooltip:AddInventoryInfo(self, link)
+			end
+			return ret
+		end)
 	end
 
 	-- Hook SetLootItem for loot windows
 	local oldSetLootItem = GameTooltip.SetLootItem
 	function GameTooltip:SetLootItem(slot)
-		local ret = oldSetLootItem(self, slot)
-		local link = GetLootSlotLink(slot)
-		if link then
-			Tooltip:AddInventoryInfo(self, link)
-		end
-		return ret
+		return WithDeferredMoney(self, function()
+			local ret = oldSetLootItem(self, slot)
+			local link = GetLootSlotLink(slot)
+			if link then
+				Tooltip:AddInventoryInfo(self, link)
+			end
+			return ret
+		end)
 	end
 
 	-- Hook SetQuestItem for quest rewards
 	local oldSetQuestItem = GameTooltip.SetQuestItem
 	function GameTooltip:SetQuestItem(itemType, index)
-		local ret = oldSetQuestItem(self, itemType, index)
-		local link = GetQuestItemLink(itemType, index)
-		if link then
-			Tooltip:AddInventoryInfo(self, link)
-		end
-		return ret
+		return WithDeferredMoney(self, function()
+			local ret = oldSetQuestItem(self, itemType, index)
+			local link = GetQuestItemLink(itemType, index)
+			if link then
+				Tooltip:AddInventoryInfo(self, link)
+			end
+			return ret
+		end)
 	end
 
 	-- Hook SetQuestLogItem for quest log items
 	local oldSetQuestLogItem = GameTooltip.SetQuestLogItem
 	function GameTooltip:SetQuestLogItem(itemType, index)
-		local ret = oldSetQuestLogItem(self, itemType, index)
-		local link = GetQuestLogItemLink(itemType, index)
-		if link then
-			Tooltip:AddInventoryInfo(self, link)
-		end
-		return ret
+		return WithDeferredMoney(self, function()
+			local ret = oldSetQuestLogItem(self, itemType, index)
+			local link = GetQuestLogItemLink(itemType, index)
+			if link then
+				Tooltip:AddInventoryInfo(self, link)
+			end
+			return ret
+		end)
 	end
 
 	-- Hook SetTradeSkillItem for tradeskill windows
 	local oldSetTradeSkillItem = GameTooltip.SetTradeSkillItem
 	function GameTooltip:SetTradeSkillItem(skillIndex, reagentIndex)
-		local ret = oldSetTradeSkillItem(self, skillIndex, reagentIndex)
-		local link
-		if reagentIndex then
-			link = GetTradeSkillReagentItemLink(skillIndex, reagentIndex)
-		else
-			link = GetTradeSkillItemLink(skillIndex)
-		end
-		if link then
-			Tooltip:AddInventoryInfo(self, link)
-		end
-		return ret
+		return WithDeferredMoney(self, function()
+			local ret = oldSetTradeSkillItem(self, skillIndex, reagentIndex)
+			local link
+			if reagentIndex then
+				link = GetTradeSkillReagentItemLink(skillIndex, reagentIndex)
+			else
+				link = GetTradeSkillItemLink(skillIndex)
+			end
+			if link then
+				Tooltip:AddInventoryInfo(self, link)
+			end
+			return ret
+		end)
 	end
 
 	-- Hook SetCraftItem for craft windows
 	local oldSetCraftItem = GameTooltip.SetCraftItem
 	function GameTooltip:SetCraftItem(skillIndex, reagentIndex)
-		local ret = oldSetCraftItem(self, skillIndex, reagentIndex)
-		local link = GetCraftReagentItemLink(skillIndex, reagentIndex)
-		if link then
-			Tooltip:AddInventoryInfo(self, link)
-		end
-		return ret
+		return WithDeferredMoney(self, function()
+			local ret = oldSetCraftItem(self, skillIndex, reagentIndex)
+			local link = GetCraftReagentItemLink(skillIndex, reagentIndex)
+			if link then
+				Tooltip:AddInventoryInfo(self, link)
+			end
+			return ret
+		end)
 	end
 
 	-- Hook SetAuctionItem for auction house
 	local oldSetAuctionItem = GameTooltip.SetAuctionItem
 	function GameTooltip:SetAuctionItem(type, index)
-		local ret = oldSetAuctionItem(self, type, index)
-		local link = GetAuctionItemLink(type, index)
-		if link then
-			Tooltip:AddInventoryInfo(self, link)
-		end
-		return ret
+		return WithDeferredMoney(self, function()
+			local ret = oldSetAuctionItem(self, type, index)
+			local link = GetAuctionItemLink(type, index)
+			if link then
+				Tooltip:AddInventoryInfo(self, link)
+			end
+			return ret
+		end)
 	end
 
 	-- Hook SetInboxItem for mail
 	local oldSetInboxItem = GameTooltip.SetInboxItem
 	function GameTooltip:SetInboxItem(index)
-		local ret = oldSetInboxItem(self, index)
-		local link = GetInboxItemLink(index)
-		if link then
-			Tooltip:AddInventoryInfo(self, link)
-		end
-		return ret
+		return WithDeferredMoney(self, function()
+			local ret = oldSetInboxItem(self, index)
+			local link = GetInboxItemLink(index)
+			if link then
+				Tooltip:AddInventoryInfo(self, link)
+			end
+			return ret
+		end)
 	end
 
 	-- Hook SetSendMailItem for sending mail
 	local oldSetSendMailItem = GameTooltip.SetSendMailItem
 	function GameTooltip:SetSendMailItem(index)
-		local ret = oldSetSendMailItem(self, index)
-		local link = GetSendMailItemLink(index)
-		if link then
-			Tooltip:AddInventoryInfo(self, link)
-		end
-		return ret
+		return WithDeferredMoney(self, function()
+			local ret = oldSetSendMailItem(self, index)
+			local link = GetSendMailItemLink(index)
+			if link then
+				Tooltip:AddInventoryInfo(self, link)
+			end
+			return ret
+		end)
 	end
 
 	-- Hook SetMerchantItem for vendor items
 	local oldSetMerchantItem = GameTooltip.SetMerchantItem
 	function GameTooltip:SetMerchantItem(index)
-		local ret = oldSetMerchantItem(self, index)
-		local link = GetMerchantItemLink(index)
-		if link then
-			Tooltip:AddInventoryInfo(self, link)
-		end
-		return ret
+		return WithDeferredMoney(self, function()
+			local ret = oldSetMerchantItem(self, index)
+			local link = GetMerchantItemLink(index)
+			if link then
+				Tooltip:AddInventoryInfo(self, link)
+			end
+			return ret
+		end)
 	end
 
 	-- Hook SetBuybackItem for buyback items
 	local oldSetBuybackItem = GameTooltip.SetBuybackItem
 	function GameTooltip:SetBuybackItem(index)
-		local ret = oldSetBuybackItem(self, index)
-		local link = GetBuybackItemLink(index)
-		if link then
-			Tooltip:AddInventoryInfo(self, link)
-		end
-		return ret
+		return WithDeferredMoney(self, function()
+			local ret = oldSetBuybackItem(self, index)
+			local link = GetBuybackItemLink(index)
+			if link then
+				Tooltip:AddInventoryInfo(self, link)
+			end
+			return ret
+		end)
 	end
 
 	-- Hook SetTradePlayerItem for trade window (player side)
 	local oldSetTradePlayerItem = GameTooltip.SetTradePlayerItem
 	function GameTooltip:SetTradePlayerItem(index)
-		local ret = oldSetTradePlayerItem(self, index)
-		local link = GetTradePlayerItemLink(index)
-		if link then
-			Tooltip:AddInventoryInfo(self, link)
-		end
-		return ret
+		return WithDeferredMoney(self, function()
+			local ret = oldSetTradePlayerItem(self, index)
+			local link = GetTradePlayerItemLink(index)
+			if link then
+				Tooltip:AddInventoryInfo(self, link)
+			end
+			return ret
+		end)
 	end
 
 	-- Hook SetTradeTargetItem for trade window (target side)
 	local oldSetTradeTargetItem = GameTooltip.SetTradeTargetItem
 	function GameTooltip:SetTradeTargetItem(index)
-		local ret = oldSetTradeTargetItem(self, index)
-		local link = GetTradeTargetItemLink(index)
-		if link then
-			Tooltip:AddInventoryInfo(self, link)
-		end
-		return ret
+		return WithDeferredMoney(self, function()
+			local ret = oldSetTradeTargetItem(self, index)
+			local link = GetTradeTargetItemLink(index)
+			if link then
+				Tooltip:AddInventoryInfo(self, link)
+			end
+			return ret
+		end)
 	end
 
 	-- Also hook ItemRefTooltip for chat links
 	if ItemRefTooltip then
 		local oldItemRefSetHyperlink = ItemRefTooltip.SetHyperlink
 		function ItemRefTooltip:SetHyperlink(link)
-			local ret = oldItemRefSetHyperlink(self, link)
-			if link and strfind(link, "item:") then
-				Tooltip:AddInventoryInfo(self, link)
-			end
-			return ret
+			return WithDeferredMoney(self, function()
+				local ret = oldItemRefSetHyperlink(self, link)
+				if link and strfind(link, "item:") then
+					Tooltip:AddInventoryInfo(self, link)
+				end
+				return ret
+			end)
 		end
 	end
 
