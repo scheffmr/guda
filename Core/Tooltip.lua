@@ -10,15 +10,105 @@ local function GetItemIDFromLink(link)
 	local _, _, itemID = strfind(link, "item:(%d+):?")
 	return itemID and tonumber(itemID) or nil
 end
-
--- Count items for a specific character
--- Count items for a specific character with safety checks
-local function CountItemsForCharacter(itemID, characterData)
+local function CountCurrentCharacterItems(itemID)
 	local bagCount = 0
 	local bankCount = 0
 	local equippedCount = 0
 
-	-- Count bags with safety checks
+	-- Count current character's bags in real-time
+	for bagID = 0, 4 do
+		local numSlots = GetContainerNumSlots(bagID)
+		for slot = 1, numSlots do
+			local link = GetContainerItemLink(bagID, slot)
+			if link then
+				local slotItemID = GetItemIDFromLink(link)
+				if slotItemID == itemID then
+					local _, count = GetContainerItemInfo(bagID, slot)
+					bagCount = bagCount + (count or 1)
+				end
+			end
+		end
+	end
+
+	-- Count current character's bank in real-time if bank is open
+	local bankFrame = getglobal("BankFrame")
+	if bankFrame and bankFrame:IsVisible() then
+	-- Main bank slots (-1)
+		local numMainSlots = GetContainerNumSlots(-1) or 24
+		for slot = 1, numMainSlots do
+			local link = GetContainerItemLink(-1, slot)
+			if link then
+				local slotItemID = GetItemIDFromLink(link)
+				if slotItemID == itemID then
+					local _, count = GetContainerItemInfo(-1, slot)
+					bankCount = bankCount + (count or 1)
+				end
+			end
+		end
+
+		-- Bank bags (5-11)
+		for bagID = 5, 11 do
+			local numSlots = GetContainerNumSlots(bagID)
+			if numSlots and numSlots > 0 then
+				for slot = 1, numSlots do
+					local link = GetContainerItemLink(bagID, slot)
+					if link then
+						local slotItemID = GetItemIDFromLink(link)
+						if slotItemID == itemID then
+							local _, count = GetContainerItemInfo(bagID, slot)
+							bankCount = bankCount + (count or 1)
+						end
+					end
+				end
+			end
+		end
+	else
+	-- Bank not open - use saved data for bank counts
+		local playerName = addon.Modules.DB:GetPlayerFullName()
+		local charData = Guda_DB and Guda_DB.characters and Guda_DB.characters[playerName]
+		if charData and charData.bank and type(charData.bank) == "table" then
+			for bagID, bagData in pairs(charData.bank) do
+				if bagData and type(bagData) == "table" and bagData.slots and type(bagData.slots) == "table" then
+					for slotID, itemData in pairs(bagData.slots) do
+						if itemData and type(itemData) == "table" and itemData.link then
+							local slotItemID = GetItemIDFromLink(itemData.link)
+							if slotItemID == itemID then
+								bankCount = bankCount + (itemData.count or 1)
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+
+	-- Count equipped items in real-time
+	for slotID = 1, 19 do  -- All equipment slots
+		local link = GetInventoryItemLink("player", slotID)
+		if link then
+			local slotItemID = GetItemIDFromLink(link)
+			if slotItemID == itemID then
+				equippedCount = equippedCount + 1
+			end
+		end
+	end
+
+	return bagCount, bankCount, equippedCount
+end
+
+-- Count items for a specific character with real-time data for current character
+local function CountItemsForCharacter(itemID, characterData, isCurrentChar)
+-- For current character, use real-time counting to avoid database sync issues
+	if isCurrentChar then
+		return CountCurrentCharacterItems(itemID)
+	end
+
+	-- For other characters, use saved data
+	local bagCount = 0
+	local bankCount = 0
+	local equippedCount = 0
+
+	-- Count bags from saved data
 	if characterData.bags and type(characterData.bags) == "table" then
 		for bagID, bagData in pairs(characterData.bags) do
 			if bagData and type(bagData) == "table" and bagData.slots and type(bagData.slots) == "table" then
@@ -34,7 +124,7 @@ local function CountItemsForCharacter(itemID, characterData)
 		end
 	end
 
-	-- Count bank with safety checks
+	-- Count bank from saved data
 	if characterData.bank and type(characterData.bank) == "table" then
 		for bagID, bagData in pairs(characterData.bank) do
 			if bagData and type(bagData) == "table" and bagData.slots and type(bagData.slots) == "table" then
@@ -50,7 +140,7 @@ local function CountItemsForCharacter(itemID, characterData)
 		end
 	end
 
-	-- Count equipped items from EquipmentScanner data with safety checks
+	-- Count equipped items from saved data
 	if characterData.equipped and type(characterData.equipped) == "table" then
 		for slotName, itemData in pairs(characterData.equipped) do
 			if itemData and type(itemData) == "table" and itemData.link then
@@ -64,6 +154,7 @@ local function CountItemsForCharacter(itemID, characterData)
 
 	return bagCount, bankCount, equippedCount
 end
+
 
 -- Get class color
 local function GetClassColor(classToken)
@@ -96,11 +187,14 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 	local characterCounts = {}
 	local hasAnyItems = false
 
+	local currentPlayerName = addon.Modules.DB:GetPlayerFullName()
+
 	-- Count items across all characters with safety checks
 	for charName, charData in pairs(Guda_DB.characters) do
 	-- Ensure charData is actually a table before processing
 		if type(charData) == "table" then
-			local bagCount, bankCount, equippedCount = CountItemsForCharacter(itemID, charData)
+			local isCurrentChar = (charName == currentPlayerName)
+			local bagCount, bankCount, equippedCount = CountItemsForCharacter(itemID, charData, isCurrentChar)
 
 			if bagCount > 0 or bankCount > 0 or equippedCount > 0 then
 				hasAnyItems = true
@@ -112,7 +206,8 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 					classToken = charData.classToken,
 					bagCount = bagCount,
 					bankCount = bankCount,
-					equippedCount = equippedCount
+					equippedCount = equippedCount,
+					isCurrent = isCurrentChar
 				})
 			end
 		end
@@ -124,16 +219,18 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 	if hasAnyItems then
 		tooltip:AddLine(" ")
 
-		-- Inventory label in exact bag frame title color (from your XML: |cFF00FF96)
-		tooltip:AddLine("|cFFFFD200Inventory|r")  -- Exact bag frame title color
+		-- Inventory label in exact bag frame title color
+		tooltip:AddLine("|cFFFFD200Inventory|r")
 
 		-- Total line with cyan label and white count
-		local totalText = "|cFF00FFFFTotal|r: |cFFFFFFFF" .. totalCount .. "|r"  -- Cyan label, white count
-		local breakdownText = "(|cFF00FFFFBags|r: |cFFFFFFFF" .. totalBags .. "|r | |cFF00FFFFBank|r: |cFFFFFFFF" .. totalBank .. "|r)"  -- Cyan labels, white counts
-
+		local totalText = "|cFF00FFFFTotal|r: |cFFFFFFFF" .. totalCount .. "|r"
+		local breakdownText = "(|cFF00FFFFBags|r: |cFFFFFFFF" .. totalBags .. "|r | |cFF00FFFFBank|r: |cFFFFFFFF" .. totalBank .. "|r)"
 		tooltip:AddDoubleLine(totalText, breakdownText, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
 
+		-- Sort with current character first
 		table.sort(characterCounts, function(a, b)
+			if a.isCurrent and not b.isCurrent then return true end
+			if not a.isCurrent and b.isCurrent then return false end
 			return a.name < b.name
 		end)
 
@@ -156,7 +253,13 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 				countText = table.concat(parts, " | ")
 			end
 
-			tooltip:AddDoubleLine(charInfo.name, countText, r, g, b, 1.0, 1.0, 1.0)
+			-- Mark current character
+			local displayName = charInfo.name
+			if charInfo.isCurrent then
+				displayName = displayName .. " |cFFFFFF00(*)|r"
+			end
+
+			tooltip:AddDoubleLine(displayName, countText, r, g, b, 1.0, 1.0, 1.0)
 		end
 
 		-- Add small gap between inventory data and vendor sell price
