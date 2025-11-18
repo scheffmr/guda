@@ -12,17 +12,18 @@ local function GetItemIDFromLink(link)
 end
 
 -- Count items for a specific character
+-- Count items for a specific character with safety checks
 local function CountItemsForCharacter(itemID, characterData)
 	local bagCount = 0
 	local bankCount = 0
 	local equippedCount = 0
 
-	-- Count bags
-	if characterData.bags then
+	-- Count bags with safety checks
+	if characterData.bags and type(characterData.bags) == "table" then
 		for bagID, bagData in pairs(characterData.bags) do
-			if bagData and bagData.slots then
+			if bagData and type(bagData) == "table" and bagData.slots and type(bagData.slots) == "table" then
 				for slotID, itemData in pairs(bagData.slots) do
-					if itemData and itemData.link then
+					if itemData and type(itemData) == "table" and itemData.link then
 						local slotItemID = GetItemIDFromLink(itemData.link)
 						if slotItemID == itemID then
 							bagCount = bagCount + (itemData.count or 1)
@@ -33,12 +34,12 @@ local function CountItemsForCharacter(itemID, characterData)
 		end
 	end
 
-	-- Count bank
-	if characterData.bank then
+	-- Count bank with safety checks
+	if characterData.bank and type(characterData.bank) == "table" then
 		for bagID, bagData in pairs(characterData.bank) do
-			if bagData and bagData.slots then
+			if bagData and type(bagData) == "table" and bagData.slots and type(bagData.slots) == "table" then
 				for slotID, itemData in pairs(bagData.slots) do
-					if itemData and itemData.link then
+					if itemData and type(itemData) == "table" and itemData.link then
 						local slotItemID = GetItemIDFromLink(itemData.link)
 						if slotItemID == itemID then
 							bankCount = bankCount + (itemData.count or 1)
@@ -49,10 +50,10 @@ local function CountItemsForCharacter(itemID, characterData)
 		end
 	end
 
-	-- Count equipped items from EquipmentScanner data
-	if characterData.equipped then
+	-- Count equipped items from EquipmentScanner data with safety checks
+	if characterData.equipped and type(characterData.equipped) == "table" then
 		for slotName, itemData in pairs(characterData.equipped) do
-			if itemData and itemData.link then
+			if itemData and type(itemData) == "table" and itemData.link then
 				local slotItemID = GetItemIDFromLink(itemData.link)
 				if slotItemID == itemID then
 					equippedCount = equippedCount + 1
@@ -72,11 +73,15 @@ local function GetClassColor(classToken)
 	return 1.0, 1.0, 1.0
 end
 
--- Add inventory info to tooltip
--- Add inventory info to tooltip
--- Add inventory info to tooltip
 function Tooltip:AddInventoryInfo(tooltip, link)
-	if not Guda_DB or not Guda_DB.characters then
+-- Check if database is properly initialized and has the expected structure
+	if not Guda_DB or type(Guda_DB) ~= "table" then
+		return
+	end
+
+	-- Safely check characters - it might be nil or a string during early initialization
+	if not Guda_DB.characters or type(Guda_DB.characters) ~= "table" then
+	-- If characters is a string or nil, just return silently
 		return
 	end
 
@@ -91,23 +96,27 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 	local characterCounts = {}
 	local hasAnyItems = false
 
-	-- Count items across all characters
+	-- Count items across all characters with safety checks
 	for charName, charData in pairs(Guda_DB.characters) do
-		local bagCount, bankCount, equippedCount = CountItemsForCharacter(itemID, charData)
+	-- Ensure charData is actually a table before processing
+		if type(charData) == "table" then
+			local bagCount, bankCount, equippedCount = CountItemsForCharacter(itemID, charData)
 
-		if bagCount > 0 or bankCount > 0 or equippedCount > 0 then
-			hasAnyItems = true
-			totalBags = totalBags + bagCount
-			totalBank = totalBank + bankCount
-			totalEquipped = totalEquipped + equippedCount
-			table.insert(characterCounts, {
-				name = charData.name or charName,
-				classToken = charData.classToken,
-				bagCount = bagCount,
-				bankCount = bankCount,
-				equippedCount = equippedCount
-			})
+			if bagCount > 0 or bankCount > 0 or equippedCount > 0 then
+				hasAnyItems = true
+				totalBags = totalBags + bagCount
+				totalBank = totalBank + bankCount
+				totalEquipped = totalEquipped + equippedCount
+				table.insert(characterCounts, {
+					name = charData.name or charName,
+					classToken = charData.classToken,
+					bagCount = bagCount,
+					bankCount = bankCount,
+					equippedCount = equippedCount
+				})
+			end
 		end
+	-- If charData is not a table (string, number, etc.), just skip it
 	end
 
 	local totalCount = totalBags + totalBank + totalEquipped
