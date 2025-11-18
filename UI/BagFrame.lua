@@ -1608,11 +1608,10 @@ function Guda_BagFrame_HighlightBagButton(bagID)
     if bagID == -2 then
         -- Keyring button
         buttonName = "Guda_BagFrame_Toolbar_KeyringButton"
-    elseif bagID >= 1 and bagID <= 4 then
-        -- Bag buttons 1-4
+    elseif bagID >= 0 and bagID <= 4 then
+        -- Bag buttons 0-4 (0 is backpack)
         buttonName = "Guda_BagFrame_Toolbar_BagSlot" .. bagID
     else
-        -- Bag 0 (backpack) has no button in the toolbar
         return
     end
 
@@ -1625,8 +1624,8 @@ end
 
 -- Clear bag button highlighting
 function Guda_BagFrame_ClearBagButtonHighlight()
-    -- Clear highlight from all bag buttons (1-4)
-    for bagID = 1, 4 do
+    -- Clear highlight from all bag buttons (0-4)
+    for bagID = 0, 4 do
         local buttonName = "Guda_BagFrame_Toolbar_BagSlot" .. bagID
         local button = getglobal(buttonName)
         if button then

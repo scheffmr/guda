@@ -273,8 +273,8 @@
                 </Scripts>
 
                 <Frames>
-                    <!-- Bag Slot 1 -->
-                    <Button name="$parent_BagSlot1" inherits="ItemButtonTemplate" movable="true">
+                    <!-- Main Bag (Backpack) Slot 0 -->
+                    <Button name="$parent_BagSlot0" inherits="ItemButtonTemplate">
                         <Size>
                             <AbsDimension x="24" y="24"/>
                         </Size>
@@ -282,6 +282,39 @@
                             <Anchor point="LEFT">
                                 <Offset>
                                     <AbsDimension x="13" y="3"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnLoad>
+                                Guda_BagSlot_OnLoad(this, 0)
+                            </OnLoad>
+                            <OnClick>
+                                Guda_BagSlot_OnClick(this, 0)
+                            </OnClick>
+                            <OnEnter>
+                                Guda_BagSlot_OnEnter(this, 0)
+                                Guda_BagFrame_HighlightBagSlots(0)
+                            </OnEnter>
+                            <OnLeave>
+                                GameTooltip:Hide()
+                                Guda_BagFrame_ClearHighlightedSlots()
+                            </OnLeave>
+                            <OnEvent>
+                                Guda_BagSlot_OnEvent(this, event, arg1)
+                            </OnEvent>
+                        </Scripts>
+                    </Button>
+
+                    <!-- Bag Slot 1 -->
+                    <Button name="$parent_BagSlot1" inherits="ItemButtonTemplate" movable="true">
+                        <Size>
+                            <AbsDimension x="24" y="24"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_BagSlot0">
+                                <Offset>
+                                    <AbsDimension x="2" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
