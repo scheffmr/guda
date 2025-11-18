@@ -492,27 +492,16 @@ end
 --===========================================================================
 
 function SortEngine:SortBags()
-    addon:Print("Starting 6-phase bag sort...")
-
     local bagIDs = addon.Constants.BAGS
 
     -- Phase 1: Detect specialized bags
     local containers = DetectSpecializedBags(bagIDs)
-    addon:Print("Phase 1: Detected %d soul, %d quiver, %d ammo, %d regular bags",
-        table.getn(containers.soul), table.getn(containers.quiver),
-        table.getn(containers.ammo), table.getn(containers.regular))
 
     -- Phase 2: Route specialized items to their bags
     local routeCount = RouteSpecializedItems(bagIDs, containers)
-    if routeCount > 0 then
-        addon:Print("Phase 2: Routed %d specialized items", routeCount)
-    end
 
     -- Phase 3: Consolidate stacks in ALL bags (including specialized)
     local consolidateCount = ConsolidateStacks(bagIDs)
-    if consolidateCount > 0 then
-        addon:Print("Phase 3: Consolidated %d stacks", consolidateCount)
-    end
 
     -- Phase 4: Sort items WITHIN each specialized bag (soul, quiver, ammo)
     local specializedMoves = 0
@@ -529,38 +518,28 @@ function SortEngine:SortBags()
             end
         end
     end
-    if specializedMoves > 0 then
-        addon:Print("Phase 4a: Sorted %d items within specialized bags", specializedMoves)
-    end
 
     -- Phase 5: Categorical sort regular bags
+    local regularMoves = 0
     local regularBagIDs = containers.regular
     if table.getn(regularBagIDs) > 0 then
         local items = CollectItems(regularBagIDs)
         if table.getn(items) > 0 then
             items = SortItems(items)
             local targetPositions = BuildTargetPositions(regularBagIDs, table.getn(items))
-            local moveCount = ApplySort(regularBagIDs, items, targetPositions)
-
-            if moveCount > 0 then
-                addon:Print("Phase 4b: Sorted and compressed %d items in regular bags", moveCount)
-            end
+            regularMoves = ApplySort(regularBagIDs, items, targetPositions)
         end
     end
 
-    -- Phase 6: Validate
-    ValidateSort(bagIDs)
-
-    addon:Print("Sort complete!")
+    -- Return total moves made (used to determine if another pass is needed)
+    return routeCount + consolidateCount + specializedMoves + regularMoves
 end
 
 function SortEngine:SortBank()
     if not addon.Modules.BankScanner:IsBankOpen() then
         addon:Print("Bank must be open to sort!")
-        return
+        return 0
     end
-
-    addon:Print("Starting 6-phase bank sort...")
 
     local bagIDs = addon.Constants.BANK_BAGS
 
@@ -569,15 +548,9 @@ function SortEngine:SortBank()
 
     -- Phase 2: Route specialized items
     local routeCount = RouteSpecializedItems(bagIDs, containers)
-    if routeCount > 0 then
-        addon:Print("Routed %d specialized items", routeCount)
-    end
 
     -- Phase 3: Consolidate stacks
     local consolidateCount = ConsolidateStacks(bagIDs)
-    if consolidateCount > 0 then
-        addon:Print("Consolidated %d stacks", consolidateCount)
-    end
 
     -- Phase 4: Sort items WITHIN each specialized bag
     local specializedMoves = 0
@@ -606,5 +579,6 @@ function SortEngine:SortBank()
         end
     end
 
-    addon:Print("Bank sort complete! Moved %d items", specializedMoves + regularMoves)
+    -- Return total moves made
+    return routeCount + consolidateCount + specializedMoves + regularMoves
 end

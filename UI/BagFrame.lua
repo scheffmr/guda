@@ -1023,25 +1023,59 @@ function Guda_BagFrame_ToggleKeyring()
     BagFrame:Update()
 end
 
--- Sort button handler
+-- Sort button handler with auto-repeat
 function Guda_BagFrame_Sort()
     if currentViewChar then
         addon:Print("Cannot sort another character's bags!")
         return
     end
 
-    addon.Modules.SortEngine:SortBags()
+    addon:Print("Sorting bags...")
 
-    -- Update after a delay to allow items to move
-    local frame = CreateFrame("Frame")
-    local elapsed = 0
-    frame:SetScript("OnUpdate", function()
-        elapsed = elapsed + arg1
-        if elapsed >= 0.5 then
-            frame:SetScript("OnUpdate", nil)
-            BagFrame:Update()
+    local passCount = 0
+    local maxPasses = 10  -- Safety limit
+
+    local function DoSortPass()
+        passCount = passCount + 1
+
+        -- Perform one sort pass
+        local moveCount = addon.Modules.SortEngine:SortBags()
+
+        -- If items were moved and we haven't hit the limit, do another pass
+        if moveCount > 0 and passCount < maxPasses then
+            -- Wait for items to settle, then sort again
+            local frame = CreateFrame("Frame")
+            local elapsed = 0
+            frame:SetScript("OnUpdate", function()
+                elapsed = elapsed + arg1
+                if elapsed >= 0.3 then
+                    frame:SetScript("OnUpdate", nil)
+                    DoSortPass()  -- Recursive call for next pass
+                end
+            end)
+        else
+            -- Sorting complete
+            if passCount >= maxPasses then
+                addon:Print("Sort complete! (reached max passes)")
+            else
+                addon:Print("Sort complete! (%d passes)", passCount)
+            end
+
+            -- Final update
+            local frame = CreateFrame("Frame")
+            local elapsed = 0
+            frame:SetScript("OnUpdate", function()
+                elapsed = elapsed + arg1
+                if elapsed >= 0.3 then
+                    frame:SetScript("OnUpdate", nil)
+                    BagFrame:Update()
+                end
+            end)
         end
-    end)
+    end
+
+    -- Start the first pass
+    DoSortPass()
 end
 
 -- Hook to default bag opening
