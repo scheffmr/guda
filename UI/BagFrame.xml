@@ -434,7 +434,7 @@
                     </Button>
 
                     <!-- Keyring Button -->
-                    <Button name="$parent_KeyringButton">
+                    <Button name="$parent_KeyringButton" inherits="ItemButtonTemplate">
                         <Size>
                             <AbsDimension x="24" y="24"/>
                         </Size>
@@ -445,33 +445,34 @@
                                 </Offset>
                             </Anchor>
                         </Anchors>
-                        <Layers>
-                            <Layer level="ARTWORK">
-                                <Texture name="$parent_Icon">
-                                    <Size>
-                                        <AbsDimension x="20" y="20"/>
-                                    </Size>
-                                    <Anchors>
-                                        <Anchor point="CENTER"/>
-                                    </Anchors>
-                                    <Color r="0.8" g="0.8" b="0.8"/>
-                                </Texture>
-                            </Layer>
-                        </Layers>
                         <Scripts>
                             <OnLoad>
-                                local icon = getglobal(this:GetName().."_Icon")
-                                if icon then
-                                    icon:SetTexture("Interface\\Icons\\INV_Misc_Key_03")
-                                    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                                -- Hide borders (same as bag slots)
+                                local normalTexture = getglobal(this:GetName().."NormalTexture")
+                                if normalTexture then
+                                    normalTexture:SetTexture(nil)
+                                    normalTexture:Hide()
                                 end
+                                local iconBorder = getglobal(this:GetName().."IconBorder")
+                                if iconBorder then
+                                    iconBorder:Hide()
+                                end
+
+                                -- Set keyring icon using SetItemButtonTexture (same as bag slots)
+                                SetItemButtonTexture(this, "Interface\\Icons\\INV_Misc_Key_03")
+
+                                -- Optionally tint it cyan to distinguish it
+                                SetItemButtonTextureVertexColor(this, 0.7, 1.0, 1.0)
                             </OnLoad>
                             <OnClick>
                                 Guda_BagFrame_ToggleKeyring()
                             </OnClick>
                             <OnEnter>
                                 GameTooltip:SetOwner(this, "ANCHOR_TOP")
-                                GameTooltip:SetText("Toggle Keyring")
+                                GameTooltip:SetText("Keyring", 1.0, 1.0, 1.0)
+                                local numSlots = GetContainerNumSlots(-2) or 0
+                                GameTooltip:AddLine(string.format("%d Slots", numSlots), 0.8, 0.8, 0.8)
+                                GameTooltip:AddLine("(Click to toggle)", 0.5, 0.8, 0.5)
                                 GameTooltip:Show()
                                 Guda_BagFrame_HighlightBagSlots(-2)
                             </OnEnter>

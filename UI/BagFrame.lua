@@ -1604,13 +1604,19 @@ end
 function Guda_BagFrame_HighlightBagButton(bagID)
     if not bagID then return end
 
-    -- Bag 0 (backpack) has no button in the toolbar, only bags 1-4
-    if bagID == 0 then return end
+    local buttonName
+    if bagID == -2 then
+        -- Keyring button
+        buttonName = "Guda_BagFrame_Toolbar_KeyringButton"
+    elseif bagID >= 1 and bagID <= 4 then
+        -- Bag buttons 1-4
+        buttonName = "Guda_BagFrame_Toolbar_BagSlot" .. bagID
+    else
+        -- Bag 0 (backpack) has no button in the toolbar
+        return
+    end
 
-    -- Bag buttons are named: Guda_BagFrame_Toolbar_BagSlot1 through BagSlot4
-    local buttonName = "Guda_BagFrame_Toolbar_BagSlot" .. bagID
     local button = getglobal(buttonName)
-
     if button then
         -- Set the button's pushed texture to highlight it
         button:LockHighlight()
@@ -1619,13 +1625,19 @@ end
 
 -- Clear bag button highlighting
 function Guda_BagFrame_ClearBagButtonHighlight()
-    -- Clear highlight from all bag buttons (1-4, no button for bag 0)
+    -- Clear highlight from all bag buttons (1-4)
     for bagID = 1, 4 do
         local buttonName = "Guda_BagFrame_Toolbar_BagSlot" .. bagID
         local button = getglobal(buttonName)
         if button then
             button:UnlockHighlight()
         end
+    end
+
+    -- Clear keyring button highlight
+    local keyringButton = getglobal("Guda_BagFrame_Toolbar_KeyringButton")
+    if keyringButton then
+        keyringButton:UnlockHighlight()
     end
 end
 
