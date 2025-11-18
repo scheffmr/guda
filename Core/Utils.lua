@@ -157,3 +157,55 @@ function Utils:TruncateText(text, maxLen)
     end
     return string.sub(text, 1, maxLen - 3) .. "..."
 end
+
+-- Create hidden tooltip for scanning (only once)
+local scanTooltip = nil
+local function GetScanTooltip()
+    if not scanTooltip then
+        scanTooltip = CreateFrame("GameTooltip", "GudaBagScanTooltip", nil, "GameTooltipTemplate")
+        scanTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
+    end
+    return scanTooltip
+end
+
+-- Check if a bag is Quiver or Ammo Pouch
+function Utils:IsAmmoQuiverBag(bagID)
+    -- Skip backpack, bank, and keyring
+    if bagID == 0 or bagID == -1 or bagID == -2 then
+        return false
+    end
+
+    -- Get the bag item
+    local invSlot = ContainerIDToInventoryID(bagID)
+    if not invSlot then
+        return false
+    end
+
+    local link = GetInventoryItemLink("player", invSlot)
+    if not link then
+        return false
+    end
+
+    -- Use tooltip scanning to get item class (more reliable in 1.12.1)
+    local tooltip = GetScanTooltip()
+    tooltip:ClearLines()
+    tooltip:SetInventoryItem("player", invSlot)
+
+    -- Scan tooltip lines for "Quiver" or "Ammo Pouch"
+    -- In vanilla, the item type appears on the right side of line 2 or 3
+    for i = 1, tooltip:NumLines() do
+        local line = getglobal("GudaBagScanTooltipTextLeft" .. i)
+        if line then
+            local text = line:GetText()
+            if text then
+                -- Check if the line contains "Quiver" or "Ammo Pouch"
+                if string.find(text, "Quiver") or string.find(text, "Ammo Pouch") then
+                    addon:Print("Bag " .. bagID .. " detected as Quiver/Ammo: " .. text)
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end

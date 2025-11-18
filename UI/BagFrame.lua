@@ -187,26 +187,50 @@ function BagFrame:DisplayItems(bagData, isOtherChar, charName)
     local perRow = addon.Modules.DB:GetSetting("bagColumns") or 10
     local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
 
-    -- Build bag list - include keyring if toggled on, skip hidden bags
-    local bagsToShow = {}
+    -- Separate bags into regular and ammo/quiver types
+    local regularBags = {}
+    local ammoQuiverBags = {}
+
     for _, bagID in ipairs(addon.Constants.BAGS) do
-        -- Skip bags that are hidden
+        -- Skip hidden bags
         if not hiddenBags[bagID] then
-            table.insert(bagsToShow, bagID)
+            if addon.Modules.Utils:IsAmmoQuiverBag(bagID) then
+                table.insert(ammoQuiverBags, bagID)
+            else
+                table.insert(regularBags, bagID)
+            end
         end
     end
 
-    -- Add keyring (-2) at the end if toggled on and not hidden
-    if showKeyring and not hiddenBags[-2] then
-        table.insert(bagsToShow, -2) -- Insert at end
+    -- Debug output
+    addon:Print("Regular bags: " .. table.getn(regularBags) .. ", Ammo/Quiver bags: " .. table.getn(ammoQuiverBags))
+
+    -- Build display order: regular bags -> ammo/quiver bags -> keyring
+    local bagsToShow = {}
+    for _, bagID in ipairs(regularBags) do
+        table.insert(bagsToShow, {bagID = bagID, needsSpacing = false})
     end
 
-    for _, bagID in ipairs(bagsToShow) do
+    -- Add ammo/quiver bags with spacing marker
+    if table.getn(ammoQuiverBags) > 0 then
+        addon:Print("Adding " .. table.getn(ammoQuiverBags) .. " ammo/quiver bags with spacing")
+        for i, bagID in ipairs(ammoQuiverBags) do
+            table.insert(bagsToShow, {bagID = bagID, needsSpacing = (i == 1)})
+            addon:Print("  Ammo/Quiver bag " .. bagID .. " - needsSpacing: " .. tostring(i == 1))
+        end
+    end
+
+    -- Add keyring at the end if toggled on and not hidden
+    if showKeyring and not hiddenBags[-2] then
+        table.insert(bagsToShow, {bagID = -2, needsSpacing = true})
+    end
+
+    for _, bagInfo in ipairs(bagsToShow) do
+        local bagID = bagInfo.bagID
         local bag = bagData[bagID]
 
-        -- Add spacing before keyring section
-        if bagID == -2 then
-            -- Add spacing before keyring
+        -- Add spacing before ammo/quiver or keyring sections
+        if bagInfo.needsSpacing then
             if col > 0 then
                 -- Move to next row if not at start of row
                 col = 0
