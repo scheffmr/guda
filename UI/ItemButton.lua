@@ -279,11 +279,19 @@ function Guda_ItemButton_OnEnter(self)
     end
 
     GameTooltip:Show()
+
+    -- Handle merchant sell cursor (same approach as BagShui)
+    if MerchantFrame:IsShown() and not self.isBank and not self.otherChar and self.hasItem then
+        ShowContainerSellCursor(self.bagID, self.slotID)
+    else
+        ResetCursor()
+    end
 end
 
 -- OnLeave handler
 function Guda_ItemButton_OnLeave(self)
     GameTooltip:Hide()
+    ResetCursor()
 end
 
 -- OnDragStart handler
