@@ -107,7 +107,6 @@ local function GetTexturePattern(textureName)
 	-- Remove trailing numbers and underscores (like _01, _03, etc.)
 	cleaned = string.gsub(cleaned, "_%d+$", "")  -- Remove trailing _01, _02, etc.
 	cleaned = string.gsub(cleaned, "_$", "")     -- Remove trailing underscore if any
-
 	return cleaned
 end
 
@@ -339,6 +338,12 @@ local function AddSortKeys(items)
 			local itemID = GetItemID(item.data.link)
 			local itemName, itemLink, itemRarity, itemLevel, itemCategory, itemType, itemStackCount,
 			itemSubType, itemTexture, itemEquipLoc, itemSellPrice = GetItemInfo(itemID)
+			--addon:Print("itemTexture:%s",itemTexture or 0);
+			--addon:Print("itemEquipLoc:%s",itemEquipLoc or 0);
+			--addon:Print("itemSubType:%s",itemSubType or 0);
+			--addon:Print("itemType:%s",itemType or 0);
+			--addon:Print("itemCategory:%s",itemCategory or 0);
+			--addon:Print("itemLevel:%s",itemLevel or 0);
 			if not itemName then
 			-- Skip items that couldn't be loaded
 				item.sortedClass = 999
@@ -404,10 +409,18 @@ local function SortItems(items)
 			return a.isEquippable
 		end
 
-		-- 3. For equippable gear: sort by slot, quality, ilvl, name
+		-- 3. For equippable gear: sort by slot, subtype, texture pattern, quality, ilvl, name
 		if a.isEquippable then
 			if a.equipSlotOrder ~= b.equipSlotOrder then
 				return a.equipSlotOrder < b.equipSlotOrder
+			end
+			-- Group by itemSubType first (e.g., "Ring", "Staff", "Cloth", etc.)
+			if a.subclass ~= b.subclass then
+				return a.subclass < b.subclass
+			end
+			-- Then group items with similar textures together
+			if a.texturePattern ~= b.texturePattern then
+				return a.texturePattern < b.texturePattern
 			end
 			if a.invertedQuality ~= b.invertedQuality then
 				return a.invertedQuality < b.invertedQuality
