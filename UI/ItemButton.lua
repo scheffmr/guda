@@ -136,6 +136,12 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
         -- Set icon
         SetItemButtonTexture(self, itemData.texture)
 
+        -- Gray out locked items (being traded, mailed, or auctioned) - BagShui style
+        -- Don't desaturate items from other characters since they're read-only anyway
+        if not self.otherChar and not self.isReadOnly then
+            SetItemButtonDesaturated(self, itemData.locked, 0.5, 0.5, 0.5)
+        end
+
         -- Hide NormalTexture for filled slots (pfUI style)
         self:SetNormalTexture("")
         local normalBorder = getglobal(self:GetName().."NormalTexture")

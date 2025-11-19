@@ -1764,6 +1764,13 @@ function BagFrame:Initialize()
         BagFrame:UpdateMoney()
     end, "BagFrame")
 
+    -- Update when items get locked/unlocked (for trading, mailing, etc.)
+    addon.Modules.Events:Register("ITEM_LOCK_CHANGED", function()
+        if not currentViewChar then
+            BagFrame:Update()
+        end
+    end, "BagFrame")
+
     -- Hide character dropdown when clicking on bag frame
     local bagFrame = getglobal("Guda_BagFrame")
     if bagFrame then

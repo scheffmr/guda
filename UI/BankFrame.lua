@@ -821,6 +821,13 @@ function BankFrame:Initialize()
         end
     end, "BankFrameUI")
 
+    -- Update when items get locked/unlocked (for trading, mailing, etc.)
+    addon.Modules.Events:Register("ITEM_LOCK_CHANGED", function()
+        if addon.Modules.BankScanner:IsBankOpen() and not currentViewChar then
+            addon.Modules.BankFrame:Update()
+        end
+    end, "BankFrameUI")
+
     -- Register bank-specific update events (pfUI style)
     local updateFrame = CreateFrame("Frame")
     updateFrame:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
