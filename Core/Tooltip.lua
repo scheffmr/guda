@@ -188,11 +188,12 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 	local hasAnyItems = false
 
 	local currentPlayerName = addon.Modules.DB:GetPlayerFullName()
+	local currentRealm = GetRealmName()
 
-	-- Count items across all characters with safety checks
+	-- Count items across characters on current realm only
 	for charName, charData in pairs(Guda_DB.characters) do
-	-- Ensure charData is actually a table before processing
-		if type(charData) == "table" then
+	-- Ensure charData is actually a table and on current realm
+		if type(charData) == "table" and charData.realm == currentRealm then
 			local isCurrentChar = (charName == currentPlayerName)
 			local bagCount, bankCount, equippedCount = CountItemsForCharacter(itemID, charData, isCurrentChar)
 

@@ -382,13 +382,13 @@ function Guda_BankFrame_MoneyOnEnter(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT", 0, 0)
     GameTooltip:ClearLines()
 
-    -- Get all characters and total
-    local chars = addon.Modules.DB:GetAllCharacters(true)
-    local totalMoney = addon.Modules.DB:GetTotalMoney(true)
+    -- Get all characters and total (faction + realm filtered)
+    local chars = addon.Modules.DB:GetAllCharacters(true, true)
+    local totalMoney = addon.Modules.DB:GetTotalMoney(true, true)
 
-    -- Header with faction/realm total - use colored money
+    -- Header with current realm total - use colored money
     GameTooltip:AddLine(
-        "Faction/realm-wide gold: " .. addon.Modules.Utils:FormatMoney(totalMoney, false, true),
+        "Current realm gold: " .. addon.Modules.Utils:FormatMoney(totalMoney, false, true),
         1, 0.82, 0
     )
     GameTooltip:AddLine(" ")
@@ -1215,8 +1215,8 @@ function Guda_BankFrame_ToggleBankDropdown(button)
     end
     bankCharDropdown.buttons = {}
 
-    -- Get all characters
-    local chars = addon.Modules.DB:GetAllCharacters(true)
+    -- Get all characters on current realm
+    local chars = addon.Modules.DB:GetAllCharacters(true, true)
 
     local yOffset = -8
 

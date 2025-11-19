@@ -160,11 +160,13 @@ function DB:SaveMoney(copper)
 	end
 end
 
--- Get all characters (optionally filter by faction)
-function DB:GetAllCharacters(sameFactionOnly)
+-- Get all characters (optionally filter by faction and/or realm)
+function DB:GetAllCharacters(sameFactionOnly, currentRealmOnly)
 	local chars = {}
 	for fullName, data in pairs(Guda_DB.characters) do
-		if not sameFactionOnly or data.faction == playerFaction then
+		local factionMatch = not sameFactionOnly or data.faction == playerFaction
+		local realmMatch = not currentRealmOnly or data.realm == playerRealm
+		if factionMatch and realmMatch then
 			table.insert(chars, {
 				fullName = fullName,
 				name = data.name,
@@ -211,11 +213,13 @@ function DB:GetCharacterInfo(fullName)
 	return char and char.character or {}
 end
 
--- Get total money across all characters
-function DB:GetTotalMoney(sameFactionOnly)
+-- Get total money across all characters (optionally filter by faction and/or realm)
+function DB:GetTotalMoney(sameFactionOnly, currentRealmOnly)
 	local total = 0
 	for fullName, data in pairs(Guda_DB.characters) do
-		if not sameFactionOnly or data.faction == playerFaction then
+		local factionMatch = not sameFactionOnly or data.faction == playerFaction
+		local realmMatch = not currentRealmOnly or data.realm == playerRealm
+		if factionMatch and realmMatch then
 			total = total + (data.money or 0)
 		end
 	end

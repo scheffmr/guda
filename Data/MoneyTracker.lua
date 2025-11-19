@@ -24,9 +24,9 @@ function MoneyTracker:GetCurrentMoney()
     return GetMoney()
 end
 
--- Get total money across all characters
-function MoneyTracker:GetTotalMoney(sameFactionOnly)
-    return addon.Modules.DB:GetTotalMoney(sameFactionOnly)
+-- Get total money across all characters (optionally filter by faction and/or realm)
+function MoneyTracker:GetTotalMoney(sameFactionOnly, currentRealmOnly)
+    return addon.Modules.DB:GetTotalMoney(sameFactionOnly, currentRealmOnly)
 end
 
 -- Initialize money tracker
