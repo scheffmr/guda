@@ -23,14 +23,12 @@ Sorting\SortEngine.lua
 UI\ItemButton.lua
 UI\BagFrame.lua
 UI\BankFrame.lua
-UI\CharacterSelector.lua
 UI\MoneyDisplay.lua
 UI\SettingsPopup.lua
 
 UI\ItemButton.xml
 UI\BagFrame.xml
 UI\BankFrame.xml
-UI\CharacterSelector.xml
 UI\SettingsPopup.xml
 
 Core\Main.lua

@@ -63,7 +63,6 @@ end
 function Main:SetupSlashCommands()
     SLASH_Guda1 = "/Guda"
     SLASH_Guda2 = "/guda"
-    SLASH_Guda3 = "/gn"
 
     SlashCmdList["Guda"] = function(msg)
         msg = string.lower(msg or "")
@@ -75,10 +74,6 @@ function Main:SetupSlashCommands()
         elseif msg == "bank" then
             -- Toggle bank
             addon.Modules.BankFrame:Toggle()
-
-        elseif msg == "char" or msg == "chars" or msg == "characters" then
-            -- Toggle character selector
-            addon.Modules.CharacterSelector:Toggle()
 
         elseif msg == "sort" then
             -- Sort bags
