@@ -354,10 +354,8 @@ function Utils:GetItemPreferredContainer(itemLink)
 	-- Only route PROJECTILE category items that are specifically arrows or bullets
 	if itemCategory == "Projectile" then
 		if itemType == "Arrow" then
-			addon:Print("-> Routing to QUIVER (Projectile - Arrow)")
 			return "quiver"
 		elseif itemType == "Bullet" then
-			addon:Print("-> Routing to AMMO (Projectile - Bullet)")
 			return "ammo"
 		end
 	end
