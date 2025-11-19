@@ -23,6 +23,11 @@ A comprehensive bag and bank management addon for Turtle WoW (1.12.1).
 - **Money Tracking**: See total gold across all characters
 - **Character Selector**: Easy switching between characters
 - **Faction Filtering**: Only shows characters of the same faction
+- **Item Counting**: Track total quantities of items across all characters, including:
+    - Bags
+    - Bank
+    - Equipped items
+    - Displayed in tooltips with breakdown
 
 ### 💰 Money Display
 
