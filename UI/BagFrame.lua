@@ -659,9 +659,9 @@ function Guda_BagFrame_MoneyOnEnter(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT", 0, 0)
     GameTooltip:ClearLines()
 
-    -- Get all characters and total (faction + realm filtered)
-    local chars = addon.Modules.DB:GetAllCharacters(true, true)
-    local totalMoney = addon.Modules.DB:GetTotalMoney(true, true)
+    -- Get all characters and total (realm filtered, all factions)
+    local chars = addon.Modules.DB:GetAllCharacters(false, true)
+    local totalMoney = addon.Modules.DB:GetTotalMoney(false, true)
 
     -- Header with current realm total - use colored money
     GameTooltip:AddLine(
@@ -733,7 +733,7 @@ function Guda_BagFrame_ToggleCharacterDropdown(button)
     characterDropdown.buttons = {}
 
     -- Get all characters on current realm
-    local chars = addon.Modules.DB:GetAllCharacters(true, true)
+    local chars = addon.Modules.DB:GetAllCharacters(false, true)
 
     -- Add "Current Character" option at the top
     local yOffset = -8
@@ -901,7 +901,7 @@ function Guda_BagFrame_ToggleBankDropdown(button)
     bankDropdown.buttons = {}
 
     -- Get all characters on current realm
-    local chars = addon.Modules.DB:GetAllCharacters(true, true)
+    local chars = addon.Modules.DB:GetAllCharacters(false, true)
 
     local yOffset = -8
 
