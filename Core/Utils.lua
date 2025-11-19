@@ -240,6 +240,54 @@ function Utils:IsAmmoQuiverBag(bagID)
     return false
 end
 
+-- Check if a bag is Soul Bag
+function Utils:IsSoulBag(bagID)
+    -- Skip backpack, bank, and keyring
+    if bagID == 0 or bagID == -1 or bagID == -2 then
+        return false
+    end
+
+    -- Get the bag item
+    local invSlot = ContainerIDToInventoryID(bagID)
+    if not invSlot then
+        return false
+    end
+
+    local link = GetInventoryItemLink("player", invSlot)
+    if not link then
+        return false
+    end
+
+    -- First try GetSpecializedBagType
+    local bagType = self:GetSpecializedBagType(bagID)
+    if bagType == "soul" then
+        return true
+    end
+
+    -- Fallback: Use tooltip scanning (more reliable in 1.12.1)
+    local tooltip = GetScanTooltip()
+    tooltip:ClearLines()
+    tooltip:SetInventoryItem("player", invSlot)
+
+    -- Scan tooltip lines for "Soul Bag" or "Soul Pouch"
+    for i = 1, tooltip:NumLines() do
+        local line = getglobal("GudaBagScanTooltipTextLeft" .. i)
+        if line then
+            local text = line:GetText()
+            if text then
+                -- Check if the line contains "Soul Bag" or "Soul Pouch" or just "Soul" in bag name
+                local textLower = string.lower(text)
+                if string.find(textLower, "soul bag") or string.find(textLower, "soul pouch") or
+                   (string.find(textLower, "soul") and (string.find(textLower, "bag") or string.find(textLower, "pouch"))) then
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+
 -- Get specialized bag type (for sorting priority)
 -- Returns: "soul", "quiver", "ammo", or nil
 function Utils:GetSpecializedBagType(bagID)

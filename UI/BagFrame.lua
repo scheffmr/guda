@@ -193,14 +193,17 @@ function BagFrame:DisplayItems(bagData, isOtherChar, charName)
     local perRow = addon.Modules.DB:GetSetting("bagColumns") or 10
     local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
 
-    -- Separate bags into regular and ammo/quiver types
+    -- Separate bags into regular, soul, and ammo/quiver types
     local regularBags = {}
+    local soulBags = {}
     local ammoQuiverBags = {}
 
     for _, bagID in ipairs(addon.Constants.BAGS) do
         -- Skip hidden bags
         if not hiddenBags[bagID] then
-            if addon.Modules.Utils:IsAmmoQuiverBag(bagID) then
+            if addon.Modules.Utils:IsSoulBag(bagID) then
+                table.insert(soulBags, bagID)
+            elseif addon.Modules.Utils:IsAmmoQuiverBag(bagID) then
                 table.insert(ammoQuiverBags, bagID)
             else
                 table.insert(regularBags, bagID)
@@ -208,10 +211,17 @@ function BagFrame:DisplayItems(bagData, isOtherChar, charName)
         end
     end
 
-    -- Build display order: regular bags -> ammo/quiver bags -> keyring
+    -- Build display order: regular bags -> soul bags -> ammo/quiver bags -> keyring
     local bagsToShow = {}
     for _, bagID in ipairs(regularBags) do
         table.insert(bagsToShow, {bagID = bagID, needsSpacing = false})
+    end
+
+    -- Add soul bags with spacing marker
+    if table.getn(soulBags) > 0 then
+        for i, bagID in ipairs(soulBags) do
+            table.insert(bagsToShow, {bagID = bagID, needsSpacing = (i == 1)})
+        end
     end
 
     -- Add ammo/quiver bags with spacing marker
@@ -230,7 +240,7 @@ function BagFrame:DisplayItems(bagData, isOtherChar, charName)
         local bagID = bagInfo.bagID
         local bag = bagData[bagID]
 
-        -- Add spacing before ammo/quiver or keyring sections
+        -- Add spacing before soul, ammo/quiver, or keyring sections
         if bagInfo.needsSpacing then
             if col > 0 then
                 -- Move to next row if not at start of row
