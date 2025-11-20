@@ -193,11 +193,33 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
                 -- Special border for keyring items (cyan/blue)
                 self.qualityBorder:SetBackdropBorderColor(0.2, 0.8, 1.0, 1)
                 self.qualityBorder:Show()
-            elseif itemData.quality then
-                -- Show colored border for all items (Poor, Common, Uncommon, Rare, Epic, etc.)
-                local r, g, b = addon.Modules.Utils:GetQualityColor(itemData.quality)
-                self.qualityBorder:SetBackdropBorderColor(r, g, b, 1)
-                self.qualityBorder:Show()
+            elseif itemData.quality and itemData.link then
+                -- Check settings to determine if we should show borders
+                local showEquipmentBorder = addon.Modules.DB:GetSetting("showQualityBorderEquipment")
+                local showOtherBorder = addon.Modules.DB:GetSetting("showQualityBorderOther")
+
+                -- Default to true if settings not found
+                if showEquipmentBorder == nil then
+                    showEquipmentBorder = true
+                end
+                if showOtherBorder == nil then
+                    showOtherBorder = true
+                end
+
+                -- Check if item is equipment
+                local isEquipment = addon.Modules.Utils:IsEquipment(itemData.link)
+
+                -- Determine if we should show the border based on item type and settings
+                local shouldShowBorder = (isEquipment and showEquipmentBorder) or (not isEquipment and showOtherBorder)
+
+                if shouldShowBorder then
+                    -- Show colored border for all items (Poor, Common, Uncommon, Rare, Epic, etc.)
+                    local r, g, b = addon.Modules.Utils:GetQualityColor(itemData.quality)
+                    self.qualityBorder:SetBackdropBorderColor(r, g, b, 1)
+                    self.qualityBorder:Show()
+                else
+                    self.qualityBorder:Hide()
+                end
             else
                 self.qualityBorder:Hide()
             end

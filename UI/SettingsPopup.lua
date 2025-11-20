@@ -42,6 +42,14 @@ function Guda_SettingsPopup_OnShow(self)
     if hideBorders == nil then
         hideBorders = false
     end
+    local showQualityBorderEquipment = Guda.Modules.DB:GetSetting("showQualityBorderEquipment")
+    if showQualityBorderEquipment == nil then
+        showQualityBorderEquipment = true
+    end
+    local showQualityBorderOther = Guda.Modules.DB:GetSetting("showQualityBorderOther")
+    if showQualityBorderOther == nil then
+        showQualityBorderOther = true
+    end
 
     -- Update sliders and checkboxes
     local bagSlider = getglobal("Guda_SettingsPopup_BagColumnsSlider")
@@ -51,6 +59,8 @@ function Guda_SettingsPopup_OnShow(self)
     local iconSpacingSlider = getglobal("Guda_SettingsPopup_IconSpacingSlider")
     local lockCheckbox = getglobal("Guda_SettingsPopup_LockBagsCheckbox")
     local hideBordersCheckbox = getglobal("Guda_SettingsPopup_HideBordersCheckbox")
+    local qualityBorderEquipmentCheckbox = getglobal("Guda_SettingsPopup_QualityBorderEquipmentCheckbox")
+    local qualityBorderOtherCheckbox = getglobal("Guda_SettingsPopup_QualityBorderOtherCheckbox")
 
     if bagSlider then
         bagSlider:SetValue(bagColumns)
@@ -78,6 +88,14 @@ function Guda_SettingsPopup_OnShow(self)
 
     if hideBordersCheckbox then
         hideBordersCheckbox:SetChecked(hideBorders and 1 or 0)
+    end
+
+    if qualityBorderEquipmentCheckbox then
+        qualityBorderEquipmentCheckbox:SetChecked(showQualityBorderEquipment and 1 or 0)
+    end
+
+    if qualityBorderOtherCheckbox then
+        qualityBorderOtherCheckbox:SetChecked(showQualityBorderOther and 1 or 0)
     end
 end
 
@@ -335,7 +353,7 @@ end
 function Guda_SettingsPopup_HideBordersCheckbox_OnLoad(self)
     local text = getglobal(self:GetName().."Text")
     if text then
-        text:SetText("Hide Borders")
+        text:SetText("Frame Borders")
 
         -- Increase font size
         local font, _, flags = text:GetFont()
@@ -381,6 +399,96 @@ function Guda_SettingsPopup_HideBordersCheckbox_OnClick(self)
         else
             Guda:ApplyBackdrop(bankFrame, "DEFAULT_FRAME", "DEFAULT")
         end
+    end
+end
+
+-- Quality Border Equipment Checkbox OnLoad
+function Guda_SettingsPopup_QualityBorderEquipmentCheckbox_OnLoad(self)
+    local text = getglobal(self:GetName().."Text")
+    if text then
+        text:SetText("Equipment Borders")
+
+        -- Increase font size
+        local font, _, flags = text:GetFont()
+        if font then
+            text:SetFont(font, 13, flags)
+        end
+    end
+
+    local showBorders = true
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        showBorders = Guda.Modules.DB:GetSetting("showQualityBorderEquipment")
+        if showBorders == nil then
+            showBorders = true
+        end
+    end
+
+    self:SetChecked(showBorders and 1 or 0)
+end
+
+-- Quality Border Equipment Checkbox OnClick
+function Guda_SettingsPopup_QualityBorderEquipmentCheckbox_OnClick(self)
+    local isChecked = self:GetChecked() == 1
+
+    -- Save setting
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("showQualityBorderEquipment", isChecked)
+    end
+
+    -- Update bag and bank frames
+    local bagFrame = getglobal("Guda_BagFrame")
+    if bagFrame and bagFrame:IsShown() then
+        Guda.Modules.BagFrame:Update()
+    end
+
+    local bankFrame = getglobal("Guda_BankFrame")
+    if bankFrame and bankFrame:IsShown() then
+        Guda.Modules.BankFrame:Update()
+    end
+end
+
+-- Quality Border Other Checkbox OnLoad
+function Guda_SettingsPopup_QualityBorderOtherCheckbox_OnLoad(self)
+    local text = getglobal(self:GetName().."Text")
+    if text then
+        text:SetText("Other Item Borders")
+
+        -- Increase font size
+        local font, _, flags = text:GetFont()
+        if font then
+            text:SetFont(font, 13, flags)
+        end
+    end
+
+    local showBorders = true
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        showBorders = Guda.Modules.DB:GetSetting("showQualityBorderOther")
+        if showBorders == nil then
+            showBorders = true
+        end
+    end
+
+    self:SetChecked(showBorders and 1 or 0)
+end
+
+-- Quality Border Other Checkbox OnClick
+function Guda_SettingsPopup_QualityBorderOtherCheckbox_OnClick(self)
+    local isChecked = self:GetChecked() == 1
+
+    -- Save setting
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("showQualityBorderOther", isChecked)
+    end
+
+    -- Update bag and bank frames
+    local bagFrame = getglobal("Guda_BagFrame")
+    if bagFrame and bagFrame:IsShown() then
+        Guda.Modules.BagFrame:Update()
+    end
+
+    local bankFrame = getglobal("Guda_BankFrame")
+    if bankFrame and bankFrame:IsShown() then
+        Guda.Modules.BankFrame:Update()
     end
 end
 

@@ -408,3 +408,29 @@ function Utils:GetItemPreferredContainer(itemLink)
 
 	return nil
 end
+
+-- Check if an item is equipment (armor, weapon, or other equippable)
+-- Returns: true if item is equipment, false otherwise
+function Utils:IsEquipment(itemLink)
+	if not itemLink then return false end
+
+	local itemID = self:ExtractItemID(itemLink)
+	if not itemID then return false end
+
+	local itemName, _, itemRarity, itemLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc = self:GetItemInfoSafe(itemID)
+
+	-- Check if item has an equip location (most reliable method)
+	if itemEquipLoc and itemEquipLoc ~= "" and itemEquipLoc ~= "INVTYPE_BAG" then
+		return true
+	end
+
+	-- Fallback: Check category (in case itemEquipLoc is not set)
+	if itemCategory then
+		local categoryLower = string.lower(itemCategory)
+		if categoryLower == "armor" or categoryLower == "weapon" then
+			return true
+		end
+	end
+
+	return false
+end

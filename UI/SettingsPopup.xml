@@ -3,7 +3,7 @@
     <!-- Settings Popup Frame -->
     <Frame name="Guda_SettingsPopup" toplevel="true" movable="true" enableMouse="true" hidden="true" parent="UIParent" frameStrata="DIALOG">
         <Size>
-            <AbsDimension x="320" y="420"/>
+            <AbsDimension x="420" y="480"/>
         </Size>
 
         <Anchors>
@@ -63,7 +63,7 @@
             <!-- Bag Columns Slider -->
             <Slider name="$parent_BagColumnsSlider" inherits="OptionsSliderTemplate">
                 <Size>
-                    <AbsDimension x="270" y="17"/>
+                    <AbsDimension x="370" y="17"/>
                 </Size>
                 <Anchors>
                     <Anchor point="TOP">
@@ -85,7 +85,7 @@
             <!-- Bank Columns Slider -->
             <Slider name="$parent_BankColumnsSlider" inherits="OptionsSliderTemplate">
                 <Size>
-                    <AbsDimension x="270" y="17"/>
+                    <AbsDimension x="370" y="17"/>
                 </Size>
                 <Anchors>
                     <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_BagColumnsSlider">
@@ -107,7 +107,7 @@
             <!-- Icon Size Slider -->
             <Slider name="$parent_IconSizeSlider" inherits="OptionsSliderTemplate">
                 <Size>
-                    <AbsDimension x="270" y="17"/>
+                    <AbsDimension x="370" y="17"/>
                 </Size>
                 <Anchors>
                     <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_BankColumnsSlider">
@@ -129,7 +129,7 @@
             <!-- Icon Font Size Slider -->
             <Slider name="$parent_IconFontSizeSlider" inherits="OptionsSliderTemplate">
                 <Size>
-                    <AbsDimension x="270" y="17"/>
+                    <AbsDimension x="370" y="17"/>
                 </Size>
                 <Anchors>
                     <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_IconSizeSlider">
@@ -151,7 +151,7 @@
             <!-- Icon Spacing Slider -->
             <Slider name="$parent_IconSpacingSlider" inherits="OptionsSliderTemplate">
                 <Size>
-                    <AbsDimension x="270" y="17"/>
+                    <AbsDimension x="370" y="17"/>
                 </Size>
                 <Anchors>
                     <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_IconFontSizeSlider">
@@ -175,7 +175,7 @@
                 <Anchors>
                     <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_IconSpacingSlider">
                         <Offset>
-                            <AbsDimension x="-120" y="-30"/>
+                            <AbsDimension x="-170" y="-30"/>
                         </Offset>
                     </Anchor>
                 </Anchors>
@@ -194,7 +194,7 @@
                 <Anchors>
                     <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_LockBagsCheckbox">
                         <Offset>
-                            <AbsDimension x="100" y="0"/>
+                            <AbsDimension x="150" y="0"/>
                         </Offset>
                     </Anchor>
                 </Anchors>
@@ -204,6 +204,44 @@
                     </OnLoad>
                     <OnClick>
                         Guda_SettingsPopup_HideBordersCheckbox_OnClick(this)
+                    </OnClick>
+                </Scripts>
+            </CheckButton>
+
+            <!-- Quality Border Equipment Checkbox -->
+            <CheckButton name="$parent_QualityBorderEquipmentCheckbox" inherits="OptionsCheckButtonTemplate">
+                <Anchors>
+                    <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_LockBagsCheckbox">
+                        <Offset>
+                            <AbsDimension x="0" y="-8"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        Guda_SettingsPopup_QualityBorderEquipmentCheckbox_OnLoad(this)
+                    </OnLoad>
+                    <OnClick>
+                        Guda_SettingsPopup_QualityBorderEquipmentCheckbox_OnClick(this)
+                    </OnClick>
+                </Scripts>
+            </CheckButton>
+
+            <!-- Quality Border Other Checkbox -->
+            <CheckButton name="$parent_QualityBorderOtherCheckbox" inherits="OptionsCheckButtonTemplate">
+                <Anchors>
+                    <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_QualityBorderEquipmentCheckbox">
+                        <Offset>
+                            <AbsDimension x="150" y="0"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        Guda_SettingsPopup_QualityBorderOtherCheckbox_OnLoad(this)
+                    </OnLoad>
+                    <OnClick>
+                        Guda_SettingsPopup_QualityBorderOtherCheckbox_OnClick(this)
                     </OnClick>
                 </Scripts>
             </CheckButton>

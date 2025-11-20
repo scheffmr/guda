@@ -39,6 +39,8 @@ function DB:Initialize()
 				iconSize = 40,
 				iconSpacing = 0,
 				iconFontSize = 12,
+				showQualityBorderEquipment = true,
+				showQualityBorderOther = true,
 			},
 		}
 	end
@@ -61,6 +63,12 @@ function DB:Initialize()
 	end
 	if not Guda_CharDB.settings.iconFontSize then
 		Guda_CharDB.settings.iconFontSize = 12
+	end
+	if Guda_CharDB.settings.showQualityBorderEquipment == nil then
+		Guda_CharDB.settings.showQualityBorderEquipment = true
+	end
+	if Guda_CharDB.settings.showQualityBorderOther == nil then
+		Guda_CharDB.settings.showQualityBorderOther = true
 	end
 
 	-- Initialize this character's data
