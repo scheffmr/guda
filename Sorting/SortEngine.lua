@@ -144,6 +144,11 @@ local function GetSubclassOrder(subclass, itemName)
 	end
 
 	-- Check other categories
+	-- Group metals, stones, ores, bars together with gems
+	if string.find(subLower, "metal") or string.find(subLower, "stone") or
+	   string.find(nameLower, "ore") or string.find(nameLower, "bar") or string.find(nameLower, "stone") then
+		return SUBCLASS_ORDER.gems  -- Group ores/bars/stones with gems
+	end
 	if string.find(subLower, "cloth") then return SUBCLASS_ORDER.cloth end
 	if string.find(subLower, "leather") then return SUBCLASS_ORDER.leather end
 	if string.find(subLower, "herb") then return SUBCLASS_ORDER.herbs end
