@@ -33,6 +33,22 @@ function Guda_ItemButton_OnLoad(self)
     self.itemData = nil
     self.isBank = false
     self.otherChar = nil
+
+    -- Create backdrop for quality border with rounded corners
+    -- Will be positioned relative to icon later
+    if not self.qualityBorder then
+        local backdrop = CreateFrame("Frame", nil, self)
+        backdrop:SetFrameLevel(self:GetFrameLevel() + 5)
+        backdrop:SetBackdrop({
+            bgFile = nil,
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 12,
+            insets = {left = 4, right = 4, top = 4, bottom = 4}
+        })
+        backdrop:SetBackdropBorderColor(0, 0, 0, 0) -- Hidden by default
+        backdrop:Hide()
+        self.qualityBorder = backdrop
+    end
 end
 
 -- Set item data
@@ -50,7 +66,6 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
     end
 
     local countText = getglobal(self:GetName().."_Count")
-    local qualityBorder = getglobal(self:GetName().."_QualityBorder")
     local emptySlotBg = getglobal(self:GetName().."_EmptySlotBg")
 
     -- Apply icon size setting
@@ -172,17 +187,20 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
             countText:Hide()
         end
 
-        -- Set quality border (or keyring border)
-        if bagID == -2 then
-            -- Special border for keyring items (cyan/blue)
-            qualityBorder:SetVertexColor(0.2, 0.8, 1.0, 1)
-            qualityBorder:Show()
-        elseif itemData.quality and itemData.quality > 1 then
-            local r, g, b = addon.Modules.Utils:GetQualityColor(itemData.quality)
-            qualityBorder:SetVertexColor(r, g, b, 1)
-            qualityBorder:Show()
-        else
-            qualityBorder:Hide()
+        -- Set quality border (pfUI style using backdrop border)
+        if self.qualityBorder then
+            if bagID == -2 then
+                -- Special border for keyring items (cyan/blue)
+                self.qualityBorder:SetBackdropBorderColor(0.2, 0.8, 1.0, 1)
+                self.qualityBorder:Show()
+            elseif itemData.quality then
+                -- Show colored border for all items (Poor, Common, Uncommon, Rare, Epic, etc.)
+                local r, g, b = addon.Modules.Utils:GetQualityColor(itemData.quality)
+                self.qualityBorder:SetBackdropBorderColor(r, g, b, 1)
+                self.qualityBorder:Show()
+            else
+                self.qualityBorder:Hide()
+            end
         end
 
         self:Show()
@@ -215,12 +233,14 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
 
         countText:Hide()
 
-        -- Show border for empty keyring slots
-        if bagID == -2 then
-            qualityBorder:SetVertexColor(0.2, 0.8, 1.0, 0.5) -- Dimmer cyan for empty slots
-            qualityBorder:Show()
-        else
-            qualityBorder:Hide()
+        -- Show border for empty keyring slots (pfUI style)
+        if self.qualityBorder then
+            if bagID == -2 then
+                self.qualityBorder:SetBackdropBorderColor(0.2, 0.8, 1.0, 0.5) -- Dimmer cyan for empty slots
+                self.qualityBorder:Show()
+            else
+                self.qualityBorder:Hide()
+            end
         end
 
         self:Show()
@@ -248,12 +268,19 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
 
             local iconDisplaySize = iconSize - iconInset
             iconTexture:ClearAllPoints()
-            iconTexture:SetPoint("CENTER", self, "CENTER", 0, 0)
+            iconTexture:SetPoint("CENTER", self, "CENTER", -0.5, 0.5)
             iconTexture:SetWidth(iconDisplaySize)
             iconTexture:SetHeight(iconDisplaySize)
             -- Crop icon edges slightly (pfUI uses .08 to .92)
             iconTexture:SetTexCoord(0.08, 0.92, 0.08, 0.92)
             iconTexture:Show()
+
+            -- Position quality border around the icon (not the slot)
+            if self.qualityBorder then
+                self.qualityBorder:ClearAllPoints()
+                self.qualityBorder:SetPoint("TOPLEFT", iconTexture, "TOPLEFT", -5, 5)
+                self.qualityBorder:SetPoint("BOTTOMRIGHT", iconTexture, "BOTTOMRIGHT", 5, -5)
+            end
         else
             -- Hide icon for empty slots
             iconTexture:Hide()

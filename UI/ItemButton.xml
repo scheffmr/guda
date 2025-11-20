@@ -17,15 +17,6 @@
                 </Texture>
             </Layer>
 
-            <!-- Quality border -->
-            <Layer level="OVERLAY">
-                <Texture name="$parent_QualityBorder" hidden="true">
-                    <Anchors>
-                        <Anchor point="TOPLEFT" x="-1" y="1"/>
-                        <Anchor point="BOTTOMRIGHT" x="1" y="-1"/>
-                    </Anchors>
-                </Texture>
-            </Layer>
 
             <!-- Item count -->
             <Layer level="OVERLAY">
