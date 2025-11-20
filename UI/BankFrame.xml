@@ -49,7 +49,7 @@
                 <Anchors>
                     <Anchor point="TOPRIGHT">
                         <Offset>
-                            <AbsDimension x="-10" y="-10"/>
+                            <AbsDimension x="-16" y="-10"/>
                         </Offset>
                     </Anchor>
                 </Anchors>
@@ -163,7 +163,7 @@
                 <Anchors>
                     <Anchor point="TOPLEFT">
                         <Offset>
-                            <AbsDimension x="13" y="-15"/>
+                            <AbsDimension x="20" y="-15"/>
                         </Offset>
                     </Anchor>
                 </Anchors>
@@ -311,7 +311,7 @@
             <!-- Toolbar Container (for bank slots info) -->
             <Frame name="$parent_Toolbar" enableMouse="true">
                 <Size>
-                    <AbsDimension x="200" y="30"/>
+                    <AbsDimension x="200" y="40"/>
                 </Size>
                 <Anchors>
                     <Anchor point="BOTTOMLEFT">
@@ -339,7 +339,7 @@
                         <Anchors>
                             <Anchor point="LEFT">
                                 <Offset>
-                                    <AbsDimension x="0" y="5"/>
+                                    <AbsDimension x="8" y="2"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>

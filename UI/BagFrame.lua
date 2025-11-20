@@ -84,6 +84,11 @@ function Guda_BagFrame_OnShow(self)
         BagFrame:UpdateBorderVisibility()
     end
 
+    -- Apply search bar visibility setting
+    if BagFrame.UpdateSearchBarVisibility then
+        BagFrame:UpdateSearchBarVisibility()
+    end
+
     BagFrame:Update()
 end
 
@@ -328,7 +333,26 @@ function BagFrame:ResizeFrame(currentRow, currentCol, columns)
     local containerWidth = (columns * (buttonSize + spacing)) + 20
     local containerHeight = (totalRows * (buttonSize + spacing)) + 20
     local frameWidth = containerWidth + 20
-    local frameHeight = containerHeight + 115  -- Title (40) + search (30) + footer (45)
+
+    -- Check if search bar is visible
+    local showSearchBar = addon.Modules.DB:GetSetting("showSearchBar")
+    if showSearchBar == nil then
+        showSearchBar = true
+    end
+
+    -- Adjust frame height based on search bar visibility
+    -- Footer height varies: more space needed when search bar is visible
+    local titleHeight = 40
+    local searchBarHeight = 30
+    local footerHeight
+    local frameHeight
+    if showSearchBar then
+        footerHeight = 55  -- Increased footer height when search bar is visible (toolbar 40px + spacing 15px)
+        frameHeight = containerHeight + titleHeight + searchBarHeight + footerHeight  -- 125 total
+    else
+        footerHeight = 45  -- Normal footer height (toolbar 40px + spacing 5px)
+        frameHeight = containerHeight + titleHeight + footerHeight  -- 85 total
+    end
 
     -- Minimum sizes
     if containerWidth < 200 then
@@ -1454,6 +1478,32 @@ function BagFrame:UpdateBorderVisibility()
         addon:ApplyBackdrop(frame, "MINIMALIST_BORDER", "DEFAULT")
     else
         addon:ApplyBackdrop(frame, "DEFAULT_FRAME", "DEFAULT")
+    end
+end
+
+-- Update search bar visibility based on setting
+function BagFrame:UpdateSearchBarVisibility()
+    if not addon or not addon.Modules or not addon.Modules.DB then return end
+
+    local searchBar = getglobal("Guda_BagFrame_SearchBar")
+    local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
+    if not searchBar or not itemContainer then return end
+
+    local showSearchBar = addon.Modules.DB:GetSetting("showSearchBar")
+    if showSearchBar == nil then
+        showSearchBar = true
+    end
+
+    if showSearchBar then
+        searchBar:Show()
+        -- Anchor ItemContainer to SearchBar's bottom
+        itemContainer:ClearAllPoints()
+        itemContainer:SetPoint("TOP", searchBar, "BOTTOM", 0, -5)
+    else
+        searchBar:Hide()
+        -- Anchor ItemContainer directly to frame top (skip search bar space)
+        itemContainer:ClearAllPoints()
+        itemContainer:SetPoint("TOP", "Guda_BagFrame", "TOP", 0, -40)
     end
 end
 

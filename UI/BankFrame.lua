@@ -39,6 +39,11 @@ function Guda_BankFrame_OnShow(self)
         BankFrame:UpdateBorderVisibility()
     end
 
+    -- Apply search bar visibility setting
+    if BankFrame.UpdateSearchBarVisibility then
+        BankFrame:UpdateSearchBarVisibility()
+    end
+
     BankFrame:Update()
 end
 
@@ -143,7 +148,7 @@ end
 
 -- Display items
 function BankFrame:DisplayItems(bankData, isOtherChar, charName)
-    local x, y = 10, -10
+    local x, y = 5, -10
     local row = 0
     local col = 0
     local buttonSize = addon.Modules.DB:GetSetting("iconSize") or addon.Constants.BUTTON_SIZE
@@ -225,10 +230,27 @@ function BankFrame:ResizeFrame(currentRow, currentCol, columns)
     end
 
     -- Calculate required dimensions
-    local containerWidth = (columns * (buttonSize + spacing)) + 20
+    local containerWidth = (columns * (buttonSize + spacing)) + 10
     local containerHeight = (totalRows * (buttonSize + spacing)) + 20
     local frameWidth = containerWidth + 30
-    local frameHeight = containerHeight + 100  -- Title (40) + search (30) + footer (30)
+
+    -- Check if search bar is visible
+    local showSearchBar = addon.Modules.DB:GetSetting("showSearchBar")
+    if showSearchBar == nil then
+        showSearchBar = true
+    end
+
+    -- Adjust frame height based on search bar visibility
+    -- Footer height varies: less space when search bar is hidden
+    local titleHeight = 40
+    local searchBarHeight = 30
+    local footerHeight = 40
+    local frameHeight
+    if showSearchBar then
+        frameHeight = containerHeight + titleHeight + searchBarHeight + footerHeight  -- 125 total
+    else
+        frameHeight = containerHeight + titleHeight + footerHeight  -- 80 total
+    end
 
     -- Minimum sizes
     if containerWidth < 200 then
@@ -265,6 +287,12 @@ function BankFrame:ResizeFrame(currentRow, currentCol, columns)
     if itemContainer then
         itemContainer:SetWidth(containerWidth)
         itemContainer:SetHeight(containerHeight)
+    end
+
+    -- Resize search bar to match container width
+    local searchBar = getglobal("Guda_BankFrame_SearchBar")
+    if searchBar then
+        searchBar:SetWidth(containerWidth)
     end
 end
 
@@ -334,7 +362,7 @@ end
 -- Create MoneyFrame if it doesn't exist
 function BankFrame:CreateMoneyFrame()
     local moneyFrame = CreateFrame("Frame", "Guda_BankFrame_MoneyFrame", Guda_BankFrame, "SmallMoneyFrameTemplate")
-    moneyFrame:SetPoint("BOTTOMRIGHT", Guda_BankFrame, "BOTTOMRIGHT", -15, 7)
+    moneyFrame:SetPoint("BOTTOMRIGHT", Guda_BankFrame, "BOTTOMRIGHT", -10, 10)
     moneyFrame:SetWidth(180)
     moneyFrame:SetHeight(35)
 
@@ -773,6 +801,32 @@ function BankFrame:UpdateBorderVisibility()
         addon:ApplyBackdrop(frame, "MINIMALIST_BORDER", "DEFAULT")
     else
         addon:ApplyBackdrop(frame, "DEFAULT_FRAME", "DEFAULT")
+    end
+end
+
+-- Update search bar visibility based on setting
+function BankFrame:UpdateSearchBarVisibility()
+    if not addon or not addon.Modules or not addon.Modules.DB then return end
+
+    local searchBar = getglobal("Guda_BankFrame_SearchBar")
+    local itemContainer = getglobal("Guda_BankFrame_ItemContainer")
+    if not searchBar or not itemContainer then return end
+
+    local showSearchBar = addon.Modules.DB:GetSetting("showSearchBar")
+    if showSearchBar == nil then
+        showSearchBar = true
+    end
+
+    if showSearchBar then
+        searchBar:Show()
+        -- Anchor ItemContainer to SearchBar's bottom
+        itemContainer:ClearAllPoints()
+        itemContainer:SetPoint("TOP", searchBar, "BOTTOM", 0, -5)
+    else
+        searchBar:Hide()
+        -- Anchor ItemContainer directly to frame top (skip search bar space)
+        itemContainer:ClearAllPoints()
+        itemContainer:SetPoint("TOP", "Guda_BankFrame", "TOP", 0, -40)
     end
 end
 

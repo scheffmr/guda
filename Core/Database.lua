@@ -41,6 +41,7 @@ function DB:Initialize()
 				iconFontSize = 12,
 				showQualityBorderEquipment = true,
 				showQualityBorderOther = true,
+				showSearchBar = true,
 			},
 		}
 	end
@@ -69,6 +70,9 @@ function DB:Initialize()
 	end
 	if Guda_CharDB.settings.showQualityBorderOther == nil then
 		Guda_CharDB.settings.showQualityBorderOther = true
+	end
+	if Guda_CharDB.settings.showSearchBar == nil then
+		Guda_CharDB.settings.showSearchBar = true
 	end
 
 	-- Initialize this character's data
@@ -113,7 +117,7 @@ end
 
 -- Get current player's full name
 function DB:GetPlayerFullName()
-	return playerName .. "-" .. playerRealm
+	return playerName
 end
 
 -- Get current character data

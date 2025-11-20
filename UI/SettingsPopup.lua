@@ -50,6 +50,10 @@ function Guda_SettingsPopup_OnShow(self)
     if showQualityBorderOther == nil then
         showQualityBorderOther = true
     end
+    local showSearchBar = Guda.Modules.DB:GetSetting("showSearchBar")
+    if showSearchBar == nil then
+        showSearchBar = true
+    end
 
     -- Update sliders and checkboxes
     local bagSlider = getglobal("Guda_SettingsPopup_BagColumnsSlider")
@@ -61,6 +65,7 @@ function Guda_SettingsPopup_OnShow(self)
     local hideBordersCheckbox = getglobal("Guda_SettingsPopup_HideBordersCheckbox")
     local qualityBorderEquipmentCheckbox = getglobal("Guda_SettingsPopup_QualityBorderEquipmentCheckbox")
     local qualityBorderOtherCheckbox = getglobal("Guda_SettingsPopup_QualityBorderOtherCheckbox")
+    local showSearchBarCheckbox = getglobal("Guda_SettingsPopup_ShowSearchBarCheckbox")
 
     if bagSlider then
         bagSlider:SetValue(bagColumns)
@@ -96,6 +101,10 @@ function Guda_SettingsPopup_OnShow(self)
 
     if qualityBorderOtherCheckbox then
         qualityBorderOtherCheckbox:SetChecked(showQualityBorderOther and 1 or 0)
+    end
+
+    if showSearchBarCheckbox then
+        showSearchBarCheckbox:SetChecked(showSearchBar and 1 or 0)
     end
 end
 
@@ -353,7 +362,7 @@ end
 function Guda_SettingsPopup_HideBordersCheckbox_OnLoad(self)
     local text = getglobal(self:GetName().."Text")
     if text then
-        text:SetText("Frame Borders")
+        text:SetText("Hide Frame Borders")
 
         -- Increase font size
         local font, _, flags = text:GetFont()
@@ -488,6 +497,60 @@ function Guda_SettingsPopup_QualityBorderOtherCheckbox_OnClick(self)
 
     local bankFrame = getglobal("Guda_BankFrame")
     if bankFrame and bankFrame:IsShown() then
+        Guda.Modules.BankFrame:Update()
+    end
+end
+
+-- Show Search Bar Checkbox OnLoad
+function Guda_SettingsPopup_ShowSearchBarCheckbox_OnLoad(self)
+    local text = getglobal(self:GetName().."Text")
+    if text then
+        text:SetText("Show Search Bar")
+
+        -- Increase font size
+        local font, _, flags = text:GetFont()
+        if font then
+            text:SetFont(font, 13, flags)
+        end
+    end
+
+    local showSearchBar = true
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        showSearchBar = Guda.Modules.DB:GetSetting("showSearchBar")
+        if showSearchBar == nil then
+            showSearchBar = true
+        end
+    end
+
+    self:SetChecked(showSearchBar and 1 or 0)
+end
+
+-- Show Search Bar Checkbox OnClick
+function Guda_SettingsPopup_ShowSearchBarCheckbox_OnClick(self)
+    local isChecked = self:GetChecked() == 1
+
+    -- Save setting
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("showSearchBar", isChecked)
+    end
+
+    -- Update search bar visibility in bag frame
+    local bagFrame = getglobal("Guda_BagFrame")
+    if bagFrame and bagFrame:IsShown() then
+        -- Use the UpdateSearchBarVisibility function which handles anchoring
+        if Guda.Modules.BagFrame.UpdateSearchBarVisibility then
+            Guda.Modules.BagFrame:UpdateSearchBarVisibility()
+        end
+        Guda.Modules.BagFrame:Update()
+    end
+
+    -- Update search bar visibility in bank frame
+    local bankFrame = getglobal("Guda_BankFrame")
+    if bankFrame and bankFrame:IsShown() then
+        -- Use the UpdateSearchBarVisibility function which handles anchoring
+        if Guda.Modules.BankFrame.UpdateSearchBarVisibility then
+            Guda.Modules.BankFrame:UpdateSearchBarVisibility()
+        end
         Guda.Modules.BankFrame:Update()
     end
 end

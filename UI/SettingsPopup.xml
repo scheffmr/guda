@@ -3,7 +3,7 @@
     <!-- Settings Popup Frame -->
     <Frame name="Guda_SettingsPopup" toplevel="true" movable="true" enableMouse="true" hidden="true" parent="UIParent" frameStrata="DIALOG">
         <Size>
-            <AbsDimension x="420" y="480"/>
+            <AbsDimension x="420" y="500"/>
         </Size>
 
         <Anchors>
@@ -242,6 +242,25 @@
                     </OnLoad>
                     <OnClick>
                         Guda_SettingsPopup_QualityBorderOtherCheckbox_OnClick(this)
+                    </OnClick>
+                </Scripts>
+            </CheckButton>
+
+            <!-- Show Search Bar Checkbox -->
+            <CheckButton name="$parent_ShowSearchBarCheckbox" inherits="OptionsCheckButtonTemplate">
+                <Anchors>
+                    <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_QualityBorderEquipmentCheckbox">
+                        <Offset>
+                            <AbsDimension x="0" y="-8"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        Guda_SettingsPopup_ShowSearchBarCheckbox_OnLoad(this)
+                    </OnLoad>
+                    <OnClick>
+                        Guda_SettingsPopup_ShowSearchBarCheckbox_OnClick(this)
                     </OnClick>
                 </Scripts>
             </CheckButton>

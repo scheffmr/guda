@@ -49,7 +49,7 @@
                 <Anchors>
                     <Anchor point="TOPRIGHT">
                         <Offset>
-                            <AbsDimension x="-10" y="-10"/>
+                            <AbsDimension x="-13" y="-10"/>
                         </Offset>
                     </Anchor>
                 </Anchors>
@@ -252,12 +252,12 @@
             <!-- Toolbar Container (for money tooltip and bag slots) -->
             <Frame name="$parent_Toolbar" enableMouse="true">
                 <Size>
-                    <AbsDimension x="200" y="30"/>
+                    <AbsDimension x="200" y="40"/>
                 </Size>
                 <Anchors>
                     <Anchor point="BOTTOMLEFT">
                         <Offset>
-                            <AbsDimension x="10" y="10"/>
+                            <AbsDimension x="10" y="5"/>
                         </Offset>
                     </Anchor>
                 </Anchors>
@@ -625,7 +625,7 @@
                 <Size x="180" y="35"/>
                 <Anchors>
                     <Anchor point="BOTTOMRIGHT" relativeTo="Guda_BagFrame" relativePoint="BOTTOMRIGHT">
-                        <Offset x="-15" y="10"/>
+                        <Offset x="-15" y="7"/>
                     </Anchor>
                 </Anchors>
                 <Scripts>
