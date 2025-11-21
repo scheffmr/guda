@@ -40,6 +40,12 @@
                 ContainerFrameItemButton_OnLoad()
                 end
             </OnLoad>
+            <OnEnter>
+                Guda_ItemButton_OnEnter(this)
+            </OnEnter>
+            <OnLeave>
+                Guda_ItemButton_OnLeave(this)
+            </OnLeave>
         </Scripts>
     </Button>
 

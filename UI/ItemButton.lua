@@ -555,57 +555,53 @@ end
 
 -- OnEnter handler (show tooltip)
 function Guda_ItemButton_OnEnter(self)
-    -- Highlight the corresponding bag button in the footer (works for empty and filled slots)
-    if not self.otherChar and self.bagID then
-        if self.isBank then
-            -- Bank item - highlight bank bag button
-            Guda_BankFrame_HighlightBagButton(self.bagID)
-        else
-            -- Regular bag item - highlight bag button
-            Guda_BagFrame_HighlightBagButton(self.bagID)
-        end
-    end
+-- Highlight the corresponding bag button in the footer (works for empty and filled slots)
+	if not self.otherChar and self.bagID then
+		if self.isBank then
+		-- Bank item - highlight bank bag button
+			Guda_BankFrame_HighlightBagButton(self.bagID)
+		else
+		-- Regular bag item - highlight bag button
+			Guda_BagFrame_HighlightBagButton(self.bagID)
+		end
+	end
 
-    -- Early return for empty slots (no tooltip needed)
-    if not self.hasItem or not self.itemData then
-        return
-    end
+	-- Early return for empty slots (no tooltip needed)
+	if not self.hasItem then
+		return
+	end
 
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+	GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 
-    -- For read-only mode (other characters or saved data), use item link from database
-    if (self.isReadOnly or self.otherChar) and self.itemData and self.itemData.link then
-        -- Extract hyperlink from item link: |cFFFFFFFF|Hitem:1234:0:0:0|h[Name]|h|r -> item:1234:0:0:0
-        local _, _, hyperlink = strfind(self.itemData.link, "|H(.+)|h")
-        if hyperlink then
-            GameTooltip:SetHyperlink(hyperlink)
-        else
-            -- Fallback: try to use the link directly
-            GameTooltip:SetHyperlink(self.itemData.link)
-        end
-    -- For bank items in live mode, use item link since SetBagItem might not work for bank bags
-    elseif self.isBank and not self.otherChar and self.itemData and self.itemData.link then
-        local _, _, hyperlink = strfind(self.itemData.link, "|H(.+)|h")
-        if hyperlink then
-            GameTooltip:SetHyperlink(hyperlink)
-        else
-            -- Fallback to SetBagItem
-            GameTooltip:SetBagItem(self.bagID, self.slotID)
-        end
-    else
-        -- For regular bags in live mode, use SetBagItem for real-time data
-        GameTooltip:SetBagItem(self.bagID, self.slotID)
-    end
+	-- For bank items, use the item link directly since SetBagItem might not work for bank bags
+	if self.isBank then
+		if self.bagID == -1 then
+			local bankSlotId = BankButtonIDToInvSlotID(self.slotID)
+			addon:Print("BANK MAIN BAG:" .. bankSlotId)
+			GameTooltip:SetInventoryItem('player', bankSlotId)
+		elseif self.itemData.link then
+			local _, _, hyperlink = strfind(self.itemData.link, "|H(.+)|h")
+			if hyperlink then
+				GameTooltip:SetHyperlink(hyperlink)
+			else
+				GameTooltip:SetBagItem(self.bagID, self.slotID)
+			end
+			addon:Print("OTHER BANK BAG")
+		end
+	else
+		addon:Print("OTHER BAG")
+		GameTooltip:SetBagItem(self.bagID, self.slotID)
+	end
 
-    GameTooltip:Show()
-
-    -- Handle merchant sell cursor (same approach as BagShui)
-    if MerchantFrame:IsShown() and not self.isBank and not self.otherChar and self.hasItem then
-        ShowContainerSellCursor(self.bagID, self.slotID)
-    else
-        ResetCursor()
-    end
+	GameTooltip:Show()
+	-- Handle merchant sell cursor (same approach as BagShui)
+	if MerchantFrame:IsShown() and not self.isBank and not self.otherChar and self.hasItem then
+		ShowContainerSellCursor(self.bagID, self.slotID)
+	else
+		ResetCursor()
+	end
 end
+
 
 -- OnLeave handler
 function Guda_ItemButton_OnLeave(self)
