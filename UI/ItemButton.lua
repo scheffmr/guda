@@ -575,7 +575,6 @@ function Guda_ItemButton_OnEnter(self)
 
 	-- For other characters or read-only mode, use cached item link
 	if self.otherChar or self.isReadOnly then
-		addon:Print('ATLAS_LOOT_ERROR')
 		GameTooltip:SetBagItem(self.bagID, self.slotID)
 	-- Special handling for bank main bag when bank might be closed
 	elseif self.isBank and self.bagID == -1 then

@@ -275,6 +275,32 @@ function Tooltip:Initialize()
 
 	-- Helper function to defer vendor money so we can insert our Inventory block above it
 	local Orig_SetTooltipMoney = SetTooltipMoney
+	-- Move the tooltip money frame(s) vertically to fine-tune their position under our custom block
+	local function AdjustMoneyFrames(tooltip, yOffset)
+		if not tooltip or not tooltip.GetName then return end
+		local baseName = tooltip:GetName()
+		if not baseName then return end
+
+		-- Collect potential money frame names used by WoW tooltips
+		local candidates = {}
+		-- Primary money frame
+		tinsert(candidates, baseName .. "MoneyFrame")
+		-- Sometimes multiple money frames are created with numeric suffixes
+		for i = 1, 8 do
+			tinsert(candidates, baseName .. "MoneyFrame" .. i)
+			tinsert(candidates, baseName .. "SmallMoneyFrame" .. i)
+		end
+
+		for i = 1, getn(candidates) do
+			local f = getglobal(candidates[i])
+			if f and f:IsShown() and f.GetPoint then
+				local point, relTo, relPoint, xOfs, yOfs = f:GetPoint(1)
+				if point then
+					f:SetPoint(point, relTo, relPoint, xOfs or 0, (yOfs or 0) + (yOffset or 0))
+				end
+			end
+		end
+	end
 	local function WithDeferredMoney(tooltip, buildFunc)
 		local queue = {}
 		-- Temporarily override global SetTooltipMoney
@@ -295,6 +321,10 @@ function Tooltip:Initialize()
 			local q = queue[i]
 			Orig_SetTooltipMoney(q[1], q[2], q[3], q[4], q[5], q[6], q[7])
 		end
+
+		-- Nudge the vendor price upward a bit so it's visually closer to the item info
+		-- In WoW UI coordinates, positive Y moves up; increase by 15px (adjust if you prefer)
+		AdjustMoneyFrames(tooltip, 15)
 		return ret
 	end
 
@@ -307,7 +337,6 @@ function Tooltip:Initialize()
 			local bankFrame = getglobal("BankFrame")
 
 			if bag == -1 and bankFrame and bankFrame:IsVisible() then
-				addon:Print('BANK FRAME:')
 				local invSlot = BankButtonIDToInvSlotID(slot)
 				if invSlot then
 					-- Use the inventory item method for bank main bag
