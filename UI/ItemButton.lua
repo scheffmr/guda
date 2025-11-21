@@ -131,6 +131,35 @@ function Guda_ItemButton_OnLoad(self)
     end
 end
 
+-- Update the Blizzard cooldown overlay on this item button
+function Guda_ItemButton_UpdateCooldown(self)
+    -- Only show cooldowns for live items of the current character
+    if not self or self.isReadOnly or self.otherChar then return end
+
+    local cooldown = getglobal(self:GetName().."Cooldown") or self.cooldown
+    if not cooldown then return end
+
+    if not self.hasItem or not self.bagID or not self.slotID then
+        cooldown:Hide()
+        return
+    end
+
+    local start, duration, enable = GetContainerItemCooldown(self.bagID, self.slotID)
+    if start and duration and duration > 0 and enable == 1 then
+        if CooldownFrame_SetTimer then
+            CooldownFrame_SetTimer(cooldown, start, duration, enable)
+        elseif CooldownFrame_Set then
+            -- Some clients expose CooldownFrame_Set instead
+            CooldownFrame_Set(cooldown, start, duration, enable)
+        else
+            -- Fallback: show the frame if API missing
+            cooldown:Show()
+        end
+    else
+        cooldown:Hide()
+    end
+end
+
 -- Set item data
 function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCharName, matchesFilter, isReadOnly)
     self.bagID = bagID
@@ -218,11 +247,19 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
         if SetItemButtonTexture then SetItemButtonTexture(self, displayTexture) end
         if SetItemButtonCount then SetItemButtonCount(self, displayCount or 1) end
         if emptySlotBg then emptySlotBg:Hide() end
+        -- Update cooldown overlay for live items
+        if not self.isReadOnly and Guda_ItemButton_UpdateCooldown then
+            Guda_ItemButton_UpdateCooldown(self)
+        end
     else
         -- Fully clear all item button state for empty slots
         if SetItemButtonTexture then SetItemButtonTexture(self, nil) end
         if SetItemButtonCount then SetItemButtonCount(self, 0) end
         if SetItemButtonDesaturated then SetItemButtonDesaturated(self, false) end
+
+        -- Ensure cooldown overlay is hidden for empty slots
+        local cooldown = getglobal(self:GetName().."Cooldown") or self.cooldown
+        if cooldown and cooldown.Hide then cooldown:Hide() end
 
         -- Also clear the icon texture directly
         local iconTexture = getglobal(self:GetName().."IconTexture")

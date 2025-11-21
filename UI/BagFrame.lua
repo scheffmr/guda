@@ -367,8 +367,13 @@ function BagFrame:DisplayItems(bagData, isOtherChar, charName)
 		end
 	end
 
-	-- Resize frame dynamically based on content
-	self:ResizeFrame(row, col, perRow)
+    -- Resize frame dynamically based on content
+    self:ResizeFrame(row, col, perRow)
+    
+    -- Ensure cooldown visuals are current after (re)building buttons
+    if self.RefreshCooldowns then
+        self:RefreshCooldowns()
+    end
 end
 
 -- Resize frame based on number of rows and columns
@@ -1887,12 +1892,21 @@ function BagFrame:Initialize()
 		end
 	end)
 
-	-- Update on bag changes
-	addon.Modules.Events:OnBagUpdate(function()
-		if not currentViewChar then
-			BagFrame:Update()
-		end
-	end, "BagFrame")
+ -- Update on bag changes
+ addon.Modules.Events:OnBagUpdate(function()
+     if not currentViewChar then
+         BagFrame:Update()
+     end
+ end, "BagFrame")
+
+ -- Update item cooldown overlays when item cooldowns change
+ addon.Modules.Events:Register("BAG_UPDATE_COOLDOWN", function()
+     if not currentViewChar then
+         if BagFrame.RefreshCooldowns then
+             BagFrame:RefreshCooldowns()
+         end
+     end
+ end, "BagFrame")
 
 	-- Update on money changes
 	addon.Modules.Events:OnMoneyChanged(function()
@@ -1923,5 +1937,37 @@ function BagFrame:Initialize()
 		end)
 	end
 
-	addon:Debug("Bag frame initialized")
+    addon:Debug("Bag frame initialized")
+end
+
+-- Refresh cooldown overlays for all visible item buttons
+function BagFrame:RefreshCooldowns()
+    local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
+    if not itemContainer then return end
+
+    -- Iterate through all children; our item buttons are direct children of per-bag parents inside the container,
+    -- so iterate all descendants by scanning children of children as well.
+    local function refreshChildren(parent)
+        local children = { parent:GetChildren() }
+        for _, child in ipairs(children) do
+            if child and child.hasItem ~= nil then
+                if child:IsShown() and Guda_ItemButton_UpdateCooldown then
+                    Guda_ItemButton_UpdateCooldown(child)
+                end
+            end
+            -- Recurse one level to reach actual buttons under bag parents
+            local grandChildren = { child:GetChildren() }
+            if table.getn(grandChildren) > 0 then
+                for _, gc in ipairs(grandChildren) do
+                    if gc and gc.hasItem ~= nil then
+                        if gc:IsShown() and Guda_ItemButton_UpdateCooldown then
+                            Guda_ItemButton_UpdateCooldown(gc)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    refreshChildren(itemContainer)
 end
