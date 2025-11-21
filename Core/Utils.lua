@@ -434,3 +434,111 @@ function Utils:IsEquipment(itemLink)
 
 	return false
 end
+
+-- Determine if an armor item is usable by the current player (class/level restrictions)
+-- Returns two values:
+--  isArmor (boolean): true if the item is in the Armor category
+--  canUse (boolean): whether the current character can equip this armor type right now
+function Utils:IsArmorUsableByPlayer(itemLink)
+    if not itemLink then return false, false end
+
+    local itemID = self:ExtractItemID(itemLink)
+    if not itemID then return false, false end
+
+    local itemName, _, itemRarity, itemLevel, itemCategory, itemType, itemStackCount, itemSubType = self:GetItemInfoSafe(itemID)
+    if not itemCategory or string.lower(itemCategory) ~= "armor" then
+        return false, false
+    end
+
+    -- Normalize subtype (e.g., "Cloth", "Leather", "Mail", "Plate", "Shield")
+    local subtype = itemSubType or ""
+
+    -- Player info
+    local _, class = UnitClass("player")
+    local level = UnitLevel and UnitLevel("player") or 1
+
+    -- Rules based on Vanilla/TurtleWoW standards
+    -- Before level 40, some classes only use lighter armor; after 40, upgrades apply
+    local function isAllowedArmorForClass()
+        if class == "MAGE" or class == "PRIEST" or class == "WARLOCK" then
+            return subtype == "Cloth"
+        elseif class == "ROGUE" or class == "DRUID" then
+            return subtype == "Leather"
+        elseif class == "HUNTER" or class == "SHAMAN" then
+            if level >= 40 then
+                return subtype == "Mail"
+            else
+                return subtype == "Leather"
+            end
+        elseif class == "PALADIN" or class == "WARRIOR" then
+            if level >= 40 then
+                return subtype == "Plate"
+            else
+                return subtype == "Mail"
+            end
+        end
+        return false
+    end
+
+    -- Shields usability
+    local function isAllowedShield()
+        if subtype ~= "Shield" then return false end
+        return class == "WARRIOR" or class == "PALADIN" or class == "SHAMAN"
+    end
+
+    local canUse = isAllowedArmorForClass() or isAllowedShield()
+    return true, canUse
+end
+
+-- Determine if an armor item is permanently unusable by the player's class
+-- Ignores temporary level-based proficiency (e.g., Hunter <40 with Mail is considered usable eventually)
+-- Returns two values:
+--  isArmor (boolean): true if the item is in the Armor category
+--  isPermanentlyUnusable (boolean): true if the player's class can never equip this armor subtype at any level
+function Utils:IsArmorPermanentlyUnusableByClass(itemLink)
+    if not itemLink then return false, false end
+
+    local itemID = self:ExtractItemID(itemLink)
+    if not itemID then return false, false end
+
+    local _, _, _, _, itemCategory, _, _, itemSubType = self:GetItemInfoSafe(itemID)
+    if not itemCategory or string.lower(itemCategory) ~= "armor" then
+        return false, false
+    end
+
+    local subtype = itemSubType or ""
+
+    -- Class info
+    local _, class = UnitClass("player")
+
+    -- Special case: Shields
+    if subtype == "Shield" then
+        local shieldAllowed = (class == "WARRIOR" or class == "PALADIN" or class == "SHAMAN")
+        return true, not shieldAllowed
+    end
+
+    -- Armor hierarchy
+    local rank = { Cloth = 1, Leather = 2, Mail = 3, Plate = 4 }
+    local itemRank = rank[subtype]
+    if not itemRank then
+        -- Unknown subtype within Armor
+        return true, true
+    end
+
+    -- Determine maximum armor rank per class (eventual, ignoring current level)
+    local maxRankByClass = {
+        MAGE = 1, PRIEST = 1, WARLOCK = 1,
+        ROGUE = 2, DRUID = 2,
+        HUNTER = 3, SHAMAN = 3,
+        PALADIN = 4, WARRIOR = 4,
+    }
+
+    local maxRank = maxRankByClass[class]
+    if not maxRank then
+        -- Unknown class: be safe and mark as unusable
+        return true, true
+    end
+
+    local permanentlyUnusable = itemRank > maxRank
+    return true, permanentlyUnusable
+end

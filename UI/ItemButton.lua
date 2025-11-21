@@ -109,6 +109,15 @@ function Guda_ItemButton_OnLoad(self)
         self.questIcon = iconFrame
     end
 
+    -- Create unusable overlay (semi-transparent red fill over the icon)
+    if not self.unusableOverlay then
+        local overlay = self:CreateTexture(nil, "OVERLAY")
+        overlay:SetTexture("Interface\\Buttons\\WHITE8X8")
+        overlay:SetVertexColor(1, 0, 0, 0.35) -- semi-transparent red
+        overlay:Hide()
+        self.unusableOverlay = overlay
+    end
+
     -- Ensure the item button sits above its container backdrop and is mouse-enabled
     local parent = self:GetParent()
     if parent and parent.GetFrameLevel then
@@ -449,6 +458,24 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
                     elseif Guda and Guda.Modules and Guda.Modules.Utils and Guda.Modules.Utils.GetQualityColor then
                         r, g, b = Guda.Modules.Utils:GetQualityColor(itemQuality)
                     end
+
+                    -- If the item is armor and is permanently unusable by class, force a red border/overlay
+                    -- Only applies to current character's live/readwrite view (not other characters or read-only)
+                    local isArmorUnusable = false
+                    if not self.otherChar and not self.isReadOnly then
+                        local isArmor, permanentlyUnusable
+                        if addon and addon.Modules and addon.Modules.Utils and addon.Modules.Utils.IsArmorPermanentlyUnusableByClass then
+                            isArmor, permanentlyUnusable = addon.Modules.Utils:IsArmorPermanentlyUnusableByClass(itemLink)
+                        elseif Guda and Guda.Modules and Guda.Modules.Utils and Guda.Modules.Utils.IsArmorPermanentlyUnusableByClass then
+                            isArmor, permanentlyUnusable = Guda.Modules.Utils:IsArmorPermanentlyUnusableByClass(itemLink)
+                        end
+                        isArmorUnusable = (isArmor and permanentlyUnusable == true)
+                    end
+
+                    if isArmorUnusable then
+                        r, g, b = 1, 0, 0
+                    end
+
                     self.qualityBorder:SetBackdropBorderColor(r, g, b, 1)
                     self.qualityBorder:Show()
                 else
@@ -479,11 +506,50 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
             end
         end
 
+        -- Show or hide unusable overlay, and keep it aligned to icon
+        do
+            local showOverlay = false
+            if not self.otherChar and not self.isReadOnly and itemLink then
+                local isArmor, permanentlyUnusable
+                if addon and addon.Modules and addon.Modules.Utils and addon.Modules.Utils.IsArmorPermanentlyUnusableByClass then
+                    isArmor, permanentlyUnusable = addon.Modules.Utils:IsArmorPermanentlyUnusableByClass(itemLink)
+                elseif Guda and Guda.Modules and Guda.Modules.Utils and Guda.Modules.Utils.IsArmorPermanentlyUnusableByClass then
+                    isArmor, permanentlyUnusable = Guda.Modules.Utils:IsArmorPermanentlyUnusableByClass(itemLink)
+                end
+                showOverlay = (isArmor and permanentlyUnusable == true)
+            end
+
+            if self.unusableOverlay then
+                local iconTexture = getglobal(self:GetName().."IconTexture") or self.icon or self.IconTexture
+                if iconTexture and iconTexture.IsShown and iconTexture:IsShown() then
+                    self.unusableOverlay:ClearAllPoints()
+                    self.unusableOverlay:SetPoint("TOPLEFT", iconTexture, "TOPLEFT", 0, 0)
+                    self.unusableOverlay:SetPoint("BOTTOMRIGHT", iconTexture, "BOTTOMRIGHT", 0, 0)
+                else
+                    -- Fallback to entire button
+                    self.unusableOverlay:ClearAllPoints()
+                    self.unusableOverlay:SetPoint("TOPLEFT", self, "TOPLEFT", 5, -5)
+                    self.unusableOverlay:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -5, 5)
+                end
+
+                if showOverlay then
+                    self.unusableOverlay:Show()
+                else
+                    self.unusableOverlay:Hide()
+                end
+            end
+        end
+
         self:Show()
     else
         self.hasItem = false
         -- For empty slots, clear the icon texture
         SetItemButtonTexture(self, nil)
+
+        -- Ensure unusable overlay is hidden when no item
+        if self.unusableOverlay then
+            self.unusableOverlay:Hide()
+        end
 
         -- Hide NormalTexture for empty slots (we use EmptySlotBg instead)
         self:SetNormalTexture("")

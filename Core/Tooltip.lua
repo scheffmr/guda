@@ -164,6 +164,9 @@ local function GetClassColor(classToken)
 	return 1.0, 1.0, 1.0
 end
 
+-- Add armor usability info (red type indicator when current character can't equip)
+-- Removed: Usability info line in tooltip per user request
+
 function Tooltip:AddInventoryInfo(tooltip, link)
 -- Check if database is properly initialized and has the expected structure
 	if not Guda_DB or type(Guda_DB) ~= "table" then
@@ -217,7 +220,9 @@ function Tooltip:AddInventoryInfo(tooltip, link)
 
 	local totalCount = totalBags + totalBank + totalEquipped
 
-	if hasAnyItems then
+ -- Usability indicator removed per user request
+
+ if hasAnyItems then
 
 		-- Top padding above the Inventory block (~10-12px visually)
 		tooltip:AddLine(" ")
