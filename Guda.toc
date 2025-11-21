@@ -25,7 +25,6 @@ Sorting\SortEngine.lua
 UI\ItemButton.lua
 UI\BagFrame.lua
 UI\BankFrame.lua
-UI\MoneyDisplay.lua
 UI\SettingsPopup.lua
 
 UI\ItemButton.xml
