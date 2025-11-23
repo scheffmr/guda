@@ -225,8 +225,15 @@ local function Guda_ItemButton_UpdateQuestIcon(self, isQuest, isQuestStarter)
 
 	if isQuest then
 	-- Set appropriate texture based on quest type
-		if not isQuestStarter then
-			addon:Print("isQuestSTarter:" .. tostring(isQuestStarter))
+		if isQuestStarter then
+		-- Quest starter: exclamation mark
+			local texture = self.questIcon:GetRegions()
+			if texture and texture.SetTexture then
+				texture:SetTexture("Interface\\GossipFrame\\AvailableQuestIcon")
+				texture:SetTexCoord(0, 1, 0, 1)
+			end
+		else
+		-- Regular quest item: question mark
 			local texture = self.questIcon:GetRegions()
 			if texture and texture.SetTexture then
 				texture:SetTexture("Interface\\GossipFrame\\ActiveQuestIcon")
