@@ -479,6 +479,11 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
         if SetItemButtonTextureVertexColor then
             SetItemButtonTextureVertexColor(self, 1.0, 1.0, 1.0)
         end
+
+		-- Clear unusable overlay for empty slots ✅ FIX: Clear red overlay when item is sold
+		if self.unusableOverlay and self.unusableOverlay.Hide then
+			self.unusableOverlay:Hide()
+		end
     end
 
     -- Resize empty slot background to match icon size (slightly larger to ensure coverage)
