@@ -864,14 +864,21 @@ function SortEngine:SortBags()
 	end
 
 	-- Phase 5: Categorical sort regular bags TOGETHER
+	-- Run multiple passes to resolve intermediate holes (e.g., an empty slot left before a filled one)
 	local regularMoves = 0
 	local regularBagIDs = containers.regular
 	if table.getn(regularBagIDs) > 0 then
-		local items = CollectItems(regularBagIDs)
-		if table.getn(items) > 0 then
+		-- Use a conservative cap on passes to avoid infinite loops in edge cases
+		local maxPasses = 6
+		for pass = 1, maxPasses do
+			local items = CollectItems(regularBagIDs)
+			if table.getn(items) == 0 then break end
 			items = SortItems(items)
 			local targetPositions = BuildTargetPositions(regularBagIDs, table.getn(items))
-			regularMoves = ApplySort(regularBagIDs, items, targetPositions)
+			local moved = ApplySort(regularBagIDs, items, targetPositions)
+			regularMoves = regularMoves + moved
+			-- If nothing moved this pass, we're done
+			if moved == 0 then break end
 		end
 	end
 
@@ -896,30 +903,37 @@ function SortEngine:SortBank()
 	-- Phase 3: Consolidate stacks
 	local consolidateCount = ConsolidateStacks(bagIDs)
 
-	-- Phase 4: Sort items WITHIN each specialized bag
+	-- Phase 4: Sort items WITHIN each specialized bag (multi-pass to avoid mid-bag holes)
 	local specializedMoves = 0
 	for _, bagType in ipairs({"soul", "quiver", "ammo"}) do
 		local specialBags = containers[bagType]
 		for _, bagID in ipairs(specialBags) do
-			local items = CollectItems({bagID})
-			if table.getn(items) > 0 then
+			local maxPasses = 4
+			for pass = 1, maxPasses do
+				local items = CollectItems({bagID})
+				if table.getn(items) == 0 then break end
 				items = SortItems(items)
 				local targetPositions = BuildTargetPositions({bagID}, table.getn(items))
-				local moveCount = ApplySort({bagID}, items, targetPositions)
-				specializedMoves = specializedMoves + moveCount
+				local moved = ApplySort({bagID}, items, targetPositions)
+				specializedMoves = specializedMoves + moved
+				if moved == 0 then break end
 			end
 		end
 	end
 
-	-- Phase 5: Sort regular bags TOGETHER
+	-- Phase 5: Sort regular bags TOGETHER (multi-pass)
 	local regularBagIDs = containers.regular
 	local regularMoves = 0
 	if table.getn(regularBagIDs) > 0 then
-		local items = CollectItems(regularBagIDs)
-		if table.getn(items) > 0 then
+		local maxPasses = 6
+		for pass = 1, maxPasses do
+			local items = CollectItems(regularBagIDs)
+			if table.getn(items) == 0 then break end
 			items = SortItems(items)
 			local targetPositions = BuildTargetPositions(regularBagIDs, table.getn(items))
-			regularMoves = ApplySort(regularBagIDs, items, targetPositions)
+			local moved = ApplySort(regularBagIDs, items, targetPositions)
+			regularMoves = regularMoves + moved
+			if moved == 0 then break end
 		end
 	end
 
