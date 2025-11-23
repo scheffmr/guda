@@ -665,6 +665,66 @@ local function ApplySort(bagIDs, items, targetPositions)
 end
 
 --===========================================================================
+-- GREY ITEM HANDLING HELPERS
+--===========================================================================
+
+-- Build tail positions (end-to-start) for a given count across the provided bags,
+-- starting from the "last" regular bag (lowest priority, then highest bagID),
+-- and spilling into previous bags when needed.
+local function BuildGreyTailPositions(bagIDs, greyCount)
+    local positions = {}
+    local index = 1
+
+    if greyCount <= 0 then return positions end
+
+    -- Order bags: lowest priority first (these are considered "last"),
+    -- and for stable, pick higher bagID later within same priority.
+    local ordered = {}
+    for _, bagID in ipairs(bagIDs) do
+        table.insert(ordered, {
+            bagID = bagID,
+            priority = tonumber(addon.Modules.Utils:GetContainerPriority(bagID)) or 0,
+            numSlots = addon.Modules.Utils:GetBagSlotCount(bagID) or 0,
+        })
+    end
+
+    table.sort(ordered, function(a, b)
+        if a.priority ~= b.priority then
+            return a.priority < b.priority -- lowest first
+        end
+        return a.bagID > b.bagID -- higher bagID later (treated as further to the right)
+    end)
+
+    -- Collect tail slots from end to start, spilling to previous bags as needed.
+    for _, info in ipairs(ordered) do
+        for slot = info.numSlots, 1, -1 do
+            if index <= greyCount then
+                positions[index] = { bag = info.bagID, slot = slot }
+                index = index + 1
+            else
+                break
+            end
+        end
+        if index > greyCount then break end
+    end
+
+    return positions
+end
+
+-- Split a list of collected items into non-greys and greys (quality 0)
+local function SplitGreyItems(items)
+    local nonGreys, greys = {}, {}
+    for _, item in ipairs(items) do
+        if tonumber(item.quality or 0) == 0 then
+            table.insert(greys, item)
+        else
+            table.insert(nonGreys, item)
+        end
+    end
+    return nonGreys, greys
+end
+
+--===========================================================================
 -- PHASE 6: Sort Complexity Analysis
 --===========================================================================
 
@@ -836,7 +896,7 @@ function SortEngine:AnalyzeBank()
 end
 
 function SortEngine:SortBags()
-	local bagIDs = addon.Constants.BAGS
+    local bagIDs = addon.Constants.BAGS
 
 	-- Phase 1: Detect specialized bags
 	local containers = DetectSpecializedBags(bagIDs)
@@ -863,24 +923,40 @@ function SortEngine:SortBags()
 		end
 	end
 
-	-- Phase 5: Categorical sort regular bags TOGETHER
-	-- Run multiple passes to resolve intermediate holes (e.g., an empty slot left before a filled one)
-	local regularMoves = 0
-	local regularBagIDs = containers.regular
-	if table.getn(regularBagIDs) > 0 then
-		-- Use a conservative cap on passes to avoid infinite loops in edge cases
-		local maxPasses = 6
-		for pass = 1, maxPasses do
-			local items = CollectItems(regularBagIDs)
-			if table.getn(items) == 0 then break end
-			items = SortItems(items)
-			local targetPositions = BuildTargetPositions(regularBagIDs, table.getn(items))
-			local moved = ApplySort(regularBagIDs, items, targetPositions)
-			regularMoves = regularMoves + moved
-			-- If nothing moved this pass, we're done
-			if moved == 0 then break end
-		end
-	end
+ -- Phase 5: Two-phase sort for regular bags:
+ --   1) Sort non-grey items normally across all regular bags (front-compaction)
+ --   2) Pack grey items (quality 0) at the end tail (last bag backwards), spilling into previous bags.
+ local regularMoves = 0
+ local regularBagIDs = containers.regular
+ if table.getn(regularBagIDs) > 0 then
+     local maxPasses = 6
+     for pass = 1, maxPasses do
+         local passMoves = 0
+
+         -- Re-collect current state from regular bags
+         local allItems = CollectItems(regularBagIDs)
+         local nonGreys, greys = SplitGreyItems(allItems)
+
+         -- 1) Non-greys: standard sort to the front positions only
+         if table.getn(nonGreys) > 0 then
+             local sortedNonGreys = SortItems(nonGreys)
+             local frontPositions = BuildTargetPositions(regularBagIDs, table.getn(sortedNonGreys))
+             passMoves = passMoves + (ApplySort(regularBagIDs, sortedNonGreys, frontPositions) or 0)
+         end
+
+         -- 2) Greys: ignore all other sorting rules; place end->start across bags
+         -- Re-collect after possible movements above for accurate positions
+         local afterItems = CollectItems(regularBagIDs)
+         local _, greysNow = SplitGreyItems(afterItems)
+         if table.getn(greysNow) > 0 then
+             local tailPositions = BuildGreyTailPositions(regularBagIDs, table.getn(greysNow))
+             passMoves = passMoves + (ApplySort(regularBagIDs, greysNow, tailPositions) or 0)
+         end
+
+         regularMoves = regularMoves + passMoves
+         if passMoves == 0 then break end
+     end
+ end
 
 	-- Return total moves made
 	return routeCount + consolidateCount + specializedMoves + regularMoves
@@ -921,21 +997,34 @@ function SortEngine:SortBank()
 		end
 	end
 
-	-- Phase 5: Sort regular bags TOGETHER (multi-pass)
-	local regularBagIDs = containers.regular
-	local regularMoves = 0
-	if table.getn(regularBagIDs) > 0 then
-		local maxPasses = 6
-		for pass = 1, maxPasses do
-			local items = CollectItems(regularBagIDs)
-			if table.getn(items) == 0 then break end
-			items = SortItems(items)
-			local targetPositions = BuildTargetPositions(regularBagIDs, table.getn(items))
-			local moved = ApplySort(regularBagIDs, items, targetPositions)
-			regularMoves = regularMoves + moved
-			if moved == 0 then break end
-		end
-	end
+ -- Phase 5: Regular bank bags — same two-phase approach (non-greys first, greys to tail)
+ local regularBagIDs = containers.regular
+ local regularMoves = 0
+ if table.getn(regularBagIDs) > 0 then
+     local maxPasses = 6
+     for pass = 1, maxPasses do
+         local passMoves = 0
+
+         local allItems = CollectItems(regularBagIDs)
+         local nonGreys, greys = SplitGreyItems(allItems)
+
+         if table.getn(nonGreys) > 0 then
+             local sortedNonGreys = SortItems(nonGreys)
+             local frontPositions = BuildTargetPositions(regularBagIDs, table.getn(sortedNonGreys))
+             passMoves = passMoves + (ApplySort(regularBagIDs, sortedNonGreys, frontPositions) or 0)
+         end
+
+         local afterItems = CollectItems(regularBagIDs)
+         local _, greysNow = SplitGreyItems(afterItems)
+         if table.getn(greysNow) > 0 then
+             local tailPositions = BuildGreyTailPositions(regularBagIDs, table.getn(greysNow))
+             passMoves = passMoves + (ApplySort(regularBagIDs, greysNow, tailPositions) or 0)
+         end
+
+         regularMoves = regularMoves + passMoves
+         if passMoves == 0 then break end
+     end
+ end
 
 	-- Return total moves made
 	return routeCount + consolidateCount + specializedMoves + regularMoves
