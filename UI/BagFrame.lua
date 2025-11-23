@@ -12,6 +12,7 @@ local itemButtons = {}
 local showKeyring = false -- Toggle for keyring display
 local hiddenBags = {} -- Track which bags are hidden (bagID -> true/false)
 local bagParents = {} -- Per-bag parent frames to carry bagID for Blizzard item button templates
+local isMerchantOpen = false -- Track whether a vendor window is currently open to prevent auto-closing bags
 
 -- Global click catcher for clearing search focus
 local clickCatcher = nil
@@ -1348,6 +1349,10 @@ local function HookDefaultBags()
 	if CloseAllBags then
 		local originalCloseAllBags = CloseAllBags
 		function CloseAllBags()
+			-- Do not auto-close our bags when interacting with a vendor
+			if isMerchantOpen then
+				return
+			end
 			Guda_BagFrame:Hide()
 		end
 	end
@@ -1915,6 +1920,20 @@ function BagFrame:Initialize()
 	-- Auto-open bag frame when mail is opened
 	addon.Modules.Events:Register("MAIL_SHOW", function()
 		Guda_BagFrame:Show()
+	end, "BagFrame")
+
+	-- Track vendor interactions to avoid closing bags when a vendor is opened
+	addon.Modules.Events:Register("MERCHANT_SHOW", function()
+		isMerchantOpen = true
+		-- Optional: ensure bags are visible when a vendor is opened
+		local frameRef = getglobal("Guda_BagFrame")
+		if frameRef and not frameRef:IsShown() then
+			frameRef:Show()
+		end
+	end, "BagFrame")
+
+	addon.Modules.Events:Register("MERCHANT_CLOSED", function()
+		isMerchantOpen = false
 	end, "BagFrame")
 
 	-- Hide character dropdown when clicking on bag frame
