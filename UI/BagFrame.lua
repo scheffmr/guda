@@ -641,9 +641,34 @@ function BagFrame:PassesSearchFilter(itemData)
 	end
 
 	-- Case-insensitive search in item name
-	itemName = string.lower(itemName)
 	local search = string.lower(searchText)
 
+	-- Advanced search (pfUI style categories)
+	if string.sub(search, 1, 1) == "~" then
+		local category = string.sub(search, 2)
+		local itemType = itemData.type or ""
+		local itemQuality = itemData.quality or -1
+
+		if category == "equipment" or category == "armor" or category == "weapon" then
+			if itemType == "Armor" or itemType == "Weapon" then return true end
+		elseif category == "consumable" then
+			if itemType == "Consumable" then return true end
+		elseif category == "tradegoods" or category == "trades" then
+			if itemType == "Trade Goods" then return true end
+		elseif category == "quest" then
+			local isQuest, isQuestStarter = Guda_GetQuestInfo(itemData.bagID, itemData.slotID, itemData.isBank)
+			if isQuest or isQuestStarter or itemType == "Quest" then return true end
+		elseif category == "reagent" then
+			if itemType == "Reagent" then return true end
+		elseif category == "common" then if itemQuality == 1 then return true end
+		elseif category == "uncommon" then if itemQuality == 2 then return true end
+		elseif category == "rare" then if itemQuality == 3 then return true end
+		elseif category == "epic" then if itemQuality == 4 then return true end
+		elseif category == "legendary" then if itemQuality == 5 then return true end
+		end
+	end
+
+	itemName = string.lower(itemName)
 	-- Check if item name contains search text
 	local matches = string.find(itemName, search, 1, true) ~= nil
 
@@ -1404,6 +1429,11 @@ local function HookDefaultBags()
 		local originalToggleBackpack = ToggleBackpack
 		function ToggleBackpack()
 			BagFrame:Toggle()
+
+			-- Force disable pfUI bags if enabled
+			if pfUI and pfUI.bag and pfUI.bag.right and pfUI.bag.right.Hide then
+				pfUI.bag.right:Hide()
+			end
 		end
 	end
 
@@ -1412,6 +1442,11 @@ local function HookDefaultBags()
 		local originalOpenAllBags = OpenAllBags
 		function OpenAllBags()
 			Guda_BagFrame:Show()
+
+			-- Force disable pfUI bags if enabled
+			if pfUI and pfUI.bag and pfUI.bag.right and pfUI.bag.right.Hide then
+				pfUI.bag.right:Hide()
+			end
 		end
 	end
 
