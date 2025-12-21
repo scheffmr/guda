@@ -340,6 +340,21 @@ function QuestItemBar:UpdateCooldowns()
     end
 end
 
+-- Global wrappers for keybindings
+function Guda_UseQuestItem1()
+    local button = getglobal("Guda_QuestItemBarButton1")
+    if button and button:IsShown() and button.hasItem and button.bagID and button.slotID then
+        UseContainerItem(button.bagID, button.slotID)
+    end
+end
+
+function Guda_UseQuestItem2()
+    local button = getglobal("Guda_QuestItemBarButton2")
+    if button and button:IsShown() and button.hasItem and button.bagID and button.slotID then
+        UseContainerItem(button.bagID, button.slotID)
+    end
+end
+
 function QuestItemBar:Initialize()
     local frame = CreateFrame("Frame", "Guda_QuestItemBar", UIParent)
     frame:SetWidth(40)
