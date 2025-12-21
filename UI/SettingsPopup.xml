@@ -3,7 +3,7 @@
     <!-- Settings Popup Frame -->
     <Frame name="Guda_SettingsPopup" toplevel="true" movable="true" enableMouse="true" hidden="true" parent="UIParent" frameStrata="DIALOG">
         <Size>
-            <AbsDimension x="420" y="500"/>
+            <AbsDimension x="420" y="530"/>
         </Size>
 
         <Anchors>
@@ -261,6 +261,25 @@
                     </OnLoad>
                     <OnClick>
                         Guda_SettingsPopup_ShowSearchBarCheckbox_OnClick(this)
+                    </OnClick>
+                </Scripts>
+            </CheckButton>
+
+            <!-- Show Quest Item Bar Checkbox -->
+            <CheckButton name="$parent_ShowQuestBarCheckbox" inherits="OptionsCheckButtonTemplate">
+                <Anchors>
+                    <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_ShowSearchBarCheckbox">
+                        <Offset>
+                            <AbsDimension x="150" y="0"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        Guda_SettingsPopup_ShowQuestBarCheckbox_OnLoad(this)
+                    </OnLoad>
+                    <OnClick>
+                        Guda_SettingsPopup_ShowQuestBarCheckbox_OnClick(this)
                     </OnClick>
                 </Scripts>
             </CheckButton>

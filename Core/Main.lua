@@ -22,8 +22,25 @@ function Main:Initialize()
 		addon.Modules.EquipmentScanner:Initialize()
 
         -- Initialize UI
+        addon:Print("Initializing UI...")
         addon.Modules.BagFrame:Initialize()
         addon.Modules.BankFrame:Initialize()
+        
+        addon:Debug("Checking QuestItemBar module...")
+        if addon.Modules.QuestItemBar and addon.Modules.QuestItemBar.isLoaded then
+            addon:Debug("QuestItemBar module found and loaded, initializing...")
+            local success, err = pcall(function() addon.Modules.QuestItemBar:Initialize() end)
+            if not success then
+                addon:Error("Failed to initialize QuestItemBar: %s", tostring(err))
+            end
+        else
+            if not addon.Modules.QuestItemBar then
+                addon:Error("QuestItemBar module table is MISSING from addon.Modules!")
+            else
+                addon:Error("QuestItemBar module file failed to load (isLoaded is nil)!")
+            end
+        end
+        
         addon.Modules.SettingsPopup:Initialize()
 
         -- Initialize tooltip
@@ -84,6 +101,13 @@ function Main:SetupSlashCommands()
             -- Toggle debug
             addon.DEBUG = not addon.DEBUG
             addon:Print("Debug mode: %s", addon.DEBUG and "ON" or "OFF")
+
+        elseif msg == "quest" then
+            -- Toggle quest bar
+            local show = not addon.Modules.DB:GetSetting("showQuestBar")
+            addon.Modules.DB:SetSetting("showQuestBar", show)
+            addon.Modules.QuestItemBar:Update()
+            addon:Print("Quest bar: %s", show and "ON" or "OFF")
 
         elseif msg == "cleanup" then
             -- Cleanup old characters

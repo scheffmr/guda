@@ -42,11 +42,15 @@ function DB:Initialize()
 				showQualityBorderEquipment = true,
 				showQualityBorderOther = true,
 				showSearchBar = true,
+				showQuestBar = true,
 			},
 		}
 	end
 
 	-- Ensure new settings exist for existing installations
+	if Guda_CharDB.settings.showQuestBar == nil then
+		Guda_CharDB.settings.showQuestBar = true
+	end
 	if not Guda_CharDB.settings.bagColumns then
 		Guda_CharDB.settings.bagColumns = 10
 	end

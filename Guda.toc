@@ -2,7 +2,7 @@
 ## Title: Guda
 ## Notes: All-in-one bag and bank addon for Turtle WoW
 ## Author: Vati
-## Version: 1.1.8
+## Version: 1.1.9
 ## SavedVariables: Guda_DB
 ## SavedVariablesPerCharacter: Guda_CharDB
 
@@ -25,8 +25,8 @@ Sorting\SortEngine.lua
 UI\ItemButton.lua
 UI\BagFrame.lua
 UI\BankFrame.lua
+UI\QuestItemBar.lua
 UI\SettingsPopup.lua
-
 UI\ItemButton.xml
 UI\BagFrame.xml
 UI\BankFrame.xml

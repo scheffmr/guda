@@ -54,6 +54,10 @@ function Guda_SettingsPopup_OnShow(self)
     if showSearchBar == nil then
         showSearchBar = true
     end
+    local showQuestBar = Guda.Modules.DB:GetSetting("showQuestBar")
+    if showQuestBar == nil then
+        showQuestBar = true
+    end
 
     -- Update sliders and checkboxes
     local bagSlider = getglobal("Guda_SettingsPopup_BagColumnsSlider")
@@ -66,6 +70,7 @@ function Guda_SettingsPopup_OnShow(self)
     local qualityBorderEquipmentCheckbox = getglobal("Guda_SettingsPopup_QualityBorderEquipmentCheckbox")
     local qualityBorderOtherCheckbox = getglobal("Guda_SettingsPopup_QualityBorderOtherCheckbox")
     local showSearchBarCheckbox = getglobal("Guda_SettingsPopup_ShowSearchBarCheckbox")
+    local showQuestBarCheckbox = getglobal("Guda_SettingsPopup_ShowQuestBarCheckbox")
 
     if bagSlider then
         bagSlider:SetValue(bagColumns)
@@ -105,6 +110,10 @@ function Guda_SettingsPopup_OnShow(self)
 
     if showSearchBarCheckbox then
         showSearchBarCheckbox:SetChecked(showSearchBar and 1 or 0)
+    end
+
+    if showQuestBarCheckbox then
+        showQuestBarCheckbox:SetChecked(showQuestBar and 1 or 0)
     end
 end
 
@@ -552,6 +561,45 @@ function Guda_SettingsPopup_ShowSearchBarCheckbox_OnClick(self)
             Guda.Modules.BankFrame:UpdateSearchBarVisibility()
         end
         Guda.Modules.BankFrame:Update()
+    end
+end
+
+-- Show Quest Bar Checkbox OnLoad
+function Guda_SettingsPopup_ShowQuestBarCheckbox_OnLoad(self)
+    local text = getglobal(self:GetName().."Text")
+    if text then
+        text:SetText("Show Quest Bar")
+
+        -- Increase font size
+        local font, _, flags = text:GetFont()
+        if font then
+            text:SetFont(font, 13, flags)
+        end
+    end
+
+    local showQuestBar = true
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        showQuestBar = Guda.Modules.DB:GetSetting("showQuestBar")
+        if showQuestBar == nil then
+            showQuestBar = true
+        end
+    end
+
+    self:SetChecked(showQuestBar and 1 or 0)
+end
+
+-- Show Quest Bar Checkbox OnClick
+function Guda_SettingsPopup_ShowQuestBarCheckbox_OnClick(self)
+    local isChecked = self:GetChecked() == 1
+
+    -- Save setting
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("showQuestBar", isChecked)
+    end
+
+    -- Update quest bar visibility
+    if Guda.Modules.QuestItemBar and Guda.Modules.QuestItemBar.Update then
+        Guda.Modules.QuestItemBar:Update()
     end
 end
 

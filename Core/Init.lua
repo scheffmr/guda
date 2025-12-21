@@ -94,7 +94,22 @@ addon.Constants = {
 }
 
 -- Initialize modules storage
-addon.Modules = {}
+addon.Modules = {
+    Main = {},
+    DB = {},
+    Events = {},
+    Utils = {},
+    Tooltip = {},
+    BagScanner = {},
+    BankScanner = {},
+    MoneyTracker = {},
+    EquipmentScanner = {},
+    SortEngine = {},
+    BagFrame = {},
+    BankFrame = {},
+    QuestItemBar = {},
+    SettingsPopup = {},
+}
 
 -- Readiness flags for safe early keybind handling
 addon._ready = false
