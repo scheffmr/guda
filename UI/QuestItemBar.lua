@@ -113,119 +113,223 @@ function QuestItemBar:IsQuestItem(bagID, slotID)
     return isQuestItem, isQuestStarter
 end
 
+function QuestItemBar:PinItem(itemID)
+    if not itemID then return end
+    local pins = addon.Modules.DB:GetSetting("questBarPinnedItems") or {}
+    
+    -- Check if already pinned
+    for i = 1, 2 do
+        if pins[i] == itemID then return end
+    end
+    
+    -- Find first empty slot
+    for i = 1, 2 do
+        if not pins[i] then
+            pins[i] = itemID
+            addon.Modules.DB:SetSetting("questBarPinnedItems", pins)
+            self:Update()
+            return true
+        end
+    end
+    
+    -- Replace first slot if both are full
+    pins[1] = itemID
+    addon.Modules.DB:SetSetting("questBarPinnedItems", pins)
+    self:Update()
+    return true
+end
+
 -- Update the bar buttons
 function QuestItemBar:Update()
-    if addon.Modules.DB:GetSetting("showQuestBar") == false then
-        local frame = Guda_QuestItemBar
+    local showQuestBar = addon.Modules.DB:GetSetting("showQuestBar")
+    local frame = Guda_QuestItemBar
+    
+    if showQuestBar == false then
         if frame then frame:Hide() end
         return
     end
-    self:ScanForQuestItems()
     
-    local frame = Guda_QuestItemBar
     if not frame then return end
-
-    -- Hide all buttons first
-    for _, button in ipairs(buttons) do
-        button:Hide()
-    end
-
-    if table.getn(questItems) == 0 then
-        frame:Hide()
-        return
-    end
-
     frame:Show()
 
+    self:ScanForQuestItems()
+    
+    local pinnedItems = addon.Modules.DB:GetSetting("questBarPinnedItems") or {}
     local buttonSize = 37
     local spacing = 2
     local xOffset = 5
     
-    for i, item in ipairs(questItems) do
+    -- Used to keep track of which bag items are already displayed
+    local usedBagSlots = {}
+
+    for i = 1, 2 do
+        local index = i
         local button = buttons[i]
         if not button then
             button = CreateFrame("Button", "Guda_QuestItemBarButton" .. i, frame, "Guda_ItemButtonTemplate")
             table.insert(buttons, button)
+            
+            -- Set up the button once
+            button:RegisterForDrag("LeftButton")
+            button:SetScript("OnDragStart", function()
+                if IsShiftKeyDown() then
+                    this:GetParent():StartMoving()
+                    this:GetParent().isMoving = true
+                end
+            end)
+            button:SetScript("OnDragStop", function()
+                local parent = this:GetParent()
+                if parent.isMoving then
+                    parent:StopMovingOrSizing()
+                    parent.isMoving = false
+                    local point, _, relativePoint, x, y = parent:GetPoint()
+                    addon.Modules.DB:SetSetting("questBarPosition", {point = point, relativePoint = relativePoint, x = x, y = y})
+                end
+            end)
         end
 
-        button:SetID(item.slotID)
-        -- SetBagItem expects bagID and slotID
-        button.bagID = item.bagID
-        button.slotID = item.slotID
-        button.itemData = { link = GetContainerItemLink(item.bagID, item.slotID) }
-
-        button.hasItem = true
-        button.isBank = false
-        button.otherChar = nil
-
-        -- Custom click handler for Quest Item Bar
-        button:SetScript("OnClick", function()
-            if arg1 == "LeftButton" then
-                if IsShiftKeyDown() then
-                    local link = GetContainerItemLink(this.bagID, this.slotID)
-                    if link then
-                        HandleModifiedItemClick(link)
-                    end
-                else
-                    UseContainerItem(this.bagID, this.slotID)
+        local itemToDisplay = nil
+        
+        -- 1. Try to find the pinned item for this slot
+        local pinnedID = pinnedItems[i]
+        if pinnedID then
+            -- Find this item in bags
+            for _, item in ipairs(questItems) do
+                local itemID = addon.Modules.Utils:ExtractItemID(GetContainerItemLink(item.bagID, item.slotID))
+                if itemID == pinnedID and not usedBagSlots[item.bagID .. ":" .. item.slotID] then
+                    itemToDisplay = item
+                    usedBagSlots[item.bagID .. ":" .. item.slotID] = true
+                    break
                 end
-            elseif arg1 == "RightButton" then
-                -- Right click also uses it or maybe open socketing? 
-                -- UseContainerItem handles both depending on context usually.
-                UseContainerItem(this.bagID, this.slotID)
+            end
+        end
+        
+        -- 2. If no pinned item or pinned item not found, auto-fill
+        if not itemToDisplay then
+            for _, item in ipairs(questItems) do
+                if not usedBagSlots[item.bagID .. ":" .. item.slotID] then
+                    itemToDisplay = item
+                    usedBagSlots[item.bagID .. ":" .. item.slotID] = true
+                    break
+                end
+            end
+        end
+
+        if itemToDisplay then
+            button.bagID = itemToDisplay.bagID
+            button.slotID = itemToDisplay.slotID
+            button.hasItem = true
+            button.itemData = { link = GetContainerItemLink(itemToDisplay.bagID, itemToDisplay.slotID) }
+            
+            local icon = getglobal(button:GetName() .. "IconTexture")
+            icon:SetTexture(itemToDisplay.texture)
+            icon:SetVertexColor(1.0, 1.0, 1.0, 1.0)
+            
+            local countText = getglobal(button:GetName() .. "Count")
+            if itemToDisplay.count > 1 then
+                countText:SetText(itemToDisplay.count)
+                countText:Show()
+            else
+                countText:Hide()
+            end
+            
+            button:SetScript("OnClick", function()
+                if arg1 == "LeftButton" then
+                    if CursorHasItem() then
+                        -- Try to pin item on cursor
+                        local tooltip = GetScanTooltip()
+                        tooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
+                        tooltip:SetCursorItem()
+                        local link = nil
+                        -- In 1.12, getting link from cursor is hard.
+                        -- We'll rely on Alt-Click from bags for pinning.
+                    end
+
+                    if IsShiftKeyDown() then
+                        local link = GetContainerItemLink(this.bagID, this.slotID)
+                        if link then HandleModifiedItemClick(link) end
+                    else
+                        UseContainerItem(this.bagID, this.slotID)
+                    end
+                elseif arg1 == "RightButton" then
+                    if IsControlKeyDown() then
+                        -- Clear pin for this slot
+                        local pins = addon.Modules.DB:GetSetting("questBarPinnedItems") or {}
+                        pins[index] = nil
+                        addon.Modules.DB:SetSetting("questBarPinnedItems", pins)
+                        QuestItemBar:Update()
+                    else
+                        UseContainerItem(this.bagID, this.slotID)
+                    end
+                end
+            end)
+            
+            button:Show()
+        else
+            -- Empty slot
+            button.hasItem = false
+            button.bagID = nil
+            button.slotID = nil
+            
+            local icon = getglobal(button:GetName() .. "IconTexture")
+            icon:SetTexture("Interface\\Buttons\\UI-EmptySlot")
+            icon:SetVertexColor(0.5, 0.5, 0.5, 0.5)
+            
+            local countText = getglobal(button:GetName() .. "Count")
+            countText:Hide()
+            
+            button:SetScript("OnClick", function()
+                if arg1 == "LeftButton" then
+                    if CursorHasItem() then
+                        -- Pinning from cursor is hard in 1.12 without hooks.
+                    end
+                elseif arg1 == "RightButton" then
+                    if IsControlKeyDown() then
+                        -- Clear pin for this slot
+                        local pins = addon.Modules.DB:GetSetting("questBarPinnedItems") or {}
+                        pins[index] = nil
+                        addon.Modules.DB:SetSetting("questBarPinnedItems", pins)
+                        QuestItemBar:Update()
+                    end
+                end
+            end)
+            
+            button:Show()
+        end
+
+        button:SetScript("OnEnter", function()
+            if this.hasItem then
+                Guda_ItemButton_OnEnter(this)
+            else
+                GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+                GameTooltip:SetText("Quest Slot " .. index)
+                GameTooltip:AddLine("Auto-fills with usable quest items.", 1, 1, 1)
+                GameTooltip:AddLine("Alt-Click an item in bags to pin it.", 0, 1, 0)
+                GameTooltip:AddLine("Ctrl-Right-Click to unpin.", 0.5, 0.5, 0.5)
+                GameTooltip:Show()
             end
         end)
 
-        button:SetScript("OnEnter", function()
-            Guda_ItemButton_OnEnter(this)
-        end)
-
         button:SetScript("OnLeave", function()
-            Guda_ItemButton_OnLeave(this)
+            if this.hasItem then
+                Guda_ItemButton_OnLeave(this)
+            else
+                GameTooltip:Hide()
+            end
         end)
-        
-        local icon = getglobal(button:GetName() .. "IconTexture")
-        icon:SetTexture(item.texture)
-        
-        local count = getglobal(button:GetName() .. "Count")
-        if item.count > 1 then
-            count:SetText(item.count)
-            count:Show()
-        else
-            count:Hide()
-        end
 
         button:ClearAllPoints()
         button:SetPoint("LEFT", frame, "LEFT", xOffset + (i-1) * (buttonSize + spacing), 0)
-        button:Show()
 
         -- Update visual overlays (cooldown, etc)
         if Guda_ItemButton_UpdateCooldown then
             Guda_ItemButton_UpdateCooldown(button)
         end
-
-        -- Allow dragging the bar via buttons
-        button:RegisterForDrag("LeftButton")
-        button:SetScript("OnDragStart", function()
-            if IsShiftKeyDown() then
-                this:GetParent():StartMoving()
-                this:GetParent().isMoving = true
-            end
-        end)
-        button:SetScript("OnDragStop", function()
-            local parent = this:GetParent()
-            if parent.isMoving then
-                parent:StopMovingOrSizing()
-                parent.isMoving = false
-                local point, _, relativePoint, x, y = parent:GetPoint()
-                addon.Modules.DB:SetSetting("questBarPosition", {point = point, relativePoint = relativePoint, x = x, y = y})
-            end
-        end)
     end
     
-    -- Adjust frame width based on number of items
-    local newWidth = xOffset * 2 + table.getn(questItems) * (buttonSize + spacing) - spacing
-    frame:SetWidth(math.max(newWidth, 40))
+    -- Fixed width for 2 slots
+    local newWidth = xOffset * 2 + 2 * (buttonSize + spacing) - spacing
+    frame:SetWidth(newWidth)
 end
 
 function QuestItemBar:UpdateCooldowns()

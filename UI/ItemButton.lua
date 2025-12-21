@@ -331,6 +331,27 @@ function Guda_ItemButton_OnLoad(self)
     if self.RegisterForClicks then
         self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     end
+    
+    self:SetScript("OnClick", function()
+        if IsAltKeyDown() and this.hasItem and not this.otherChar and not this.isReadOnly then
+            local link = GetContainerItemLink(this.bagID, this.slotID)
+            if link and addon and addon.Modules and addon.Modules.Utils then
+                local itemID = addon.Modules.Utils:ExtractItemID(link)
+                if itemID and addon.Modules.QuestItemBar and addon.Modules.QuestItemBar.PinItem then
+                    local isQuest = IsQuestItem(this.bagID, this.slotID)
+                    if isQuest then
+                        addon.Modules.QuestItemBar:PinItem(itemID)
+                        return
+                    end
+                end
+            end
+        end
+        
+        -- Default behavior
+        if ContainerFrameItemButton_OnClick then
+            ContainerFrameItemButton_OnClick(arg1)
+        end
+    end)
 end
 
 -- Update the Blizzard cooldown overlay on this item button

@@ -94,6 +94,9 @@ function DB:Initialize()
 	if Guda_CharDB.settings.showSearchBar == nil then
 		Guda_CharDB.settings.showSearchBar = true
 	end
+	if Guda_CharDB.settings.questBarPinnedItems == nil then
+		Guda_CharDB.settings.questBarPinnedItems = {}
+	end
 
 	-- Initialize this character's data
 	if not Guda_DB.characters[fullName] then
