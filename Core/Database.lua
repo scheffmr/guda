@@ -42,13 +42,16 @@ function DB:Initialize()
 				showQualityBorderEquipment = true,
 				showQualityBorderOther = true,
 				showSearchBar = true,
-				showQuestBar = true,
 				hoverBagline = false,
+				hideFooter = false,
 			},
 		}
 	end
 
 	-- Ensure new settings exist for existing installations
+	if Guda_CharDB.settings.hideFooter == nil then
+		Guda_CharDB.settings.hideFooter = false
+	end
 	if Guda_CharDB.settings.hoverBagline == nil then
 		Guda_CharDB.settings.hoverBagline = false
 	end

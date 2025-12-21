@@ -339,6 +339,9 @@ function Guda_SettingsPopup_IconSpacingSlider_OnValueChanged(self)
     -- Update bank frame
     local bankFrame = getglobal("Guda_BankFrame")
     if bankFrame and bankFrame:IsShown() then
+        if Guda.Modules.BankFrame.UpdateFooterVisibility then
+            Guda.Modules.BankFrame:UpdateFooterVisibility()
+        end
         Guda.Modules.BankFrame:Update()
     end
 end
@@ -655,6 +658,58 @@ function Guda_SettingsPopup_HoverBaglineCheckbox_OnClick(self)
     local bagFrame = getglobal("Guda_BagFrame")
     if bagFrame and bagFrame:IsShown() then
         Guda.Modules.BagFrame:Update()
+    end
+end
+
+-- Hide Footer Checkbox OnLoad
+function Guda_SettingsPopup_HideFooterCheckbox_OnLoad(self)
+    local text = getglobal(self:GetName().."Text")
+    if text then
+        text:SetText("Hide Footer")
+
+        -- Increase font size
+        local font, _, flags = text:GetFont()
+        if font then
+            text:SetFont(font, 13, flags)
+        end
+    end
+
+    local hideFooter = false
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        hideFooter = Guda.Modules.DB:GetSetting("hideFooter")
+        if hideFooter == nil then
+            hideFooter = false
+        end
+    end
+
+    self:SetChecked(hideFooter and 1 or 0)
+end
+
+-- Hide Footer Checkbox OnClick
+function Guda_SettingsPopup_HideFooterCheckbox_OnClick(self)
+    local isChecked = self:GetChecked() == 1
+
+    -- Save setting
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("hideFooter", isChecked)
+    end
+
+    -- Update bag frame
+    local bagFrame = getglobal("Guda_BagFrame")
+    if bagFrame and bagFrame:IsShown() then
+        if Guda.Modules.BagFrame.UpdateFooterVisibility then
+            Guda.Modules.BagFrame:UpdateFooterVisibility()
+        end
+        Guda.Modules.BagFrame:Update()
+    end
+
+    -- Update bank frame
+    local bankFrame = getglobal("Guda_BankFrame")
+    if bankFrame and bankFrame:IsShown() then
+        if Guda.Modules.BankFrame.UpdateFooterVisibility then
+            Guda.Modules.BankFrame:UpdateFooterVisibility()
+        end
+        Guda.Modules.BankFrame:Update()
     end
 end
 

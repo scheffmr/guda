@@ -57,13 +57,18 @@ function Guda_BankFrame_OnShow(self)
         BankFrame:UpdateBorderVisibility()
     end
 
-    -- Apply search bar visibility setting
-    if BankFrame.UpdateSearchBarVisibility then
-        BankFrame:UpdateSearchBarVisibility()
-    end
+   	-- Apply search bar visibility setting
+   	if BankFrame.UpdateSearchBarVisibility then
+   		BankFrame:UpdateSearchBarVisibility()
+   	end
 
-    BankFrame:Update()
-end
+   	-- Apply footer visibility setting
+   	if BankFrame.UpdateFooterVisibility then
+   		BankFrame:UpdateFooterVisibility()
+   	end
+
+   	BankFrame:Update()
+   end
 
 -- Toggle visibility
 function BankFrame:Toggle()
@@ -360,7 +365,13 @@ function BankFrame:ResizeFrame(currentRow, currentCol, columns)
     local searchBarHeight = 30
     local footerHeight = 40
     local frameHeight
-    if showSearchBar then
+
+    local hideFooter = addon.Modules.DB:GetSetting("hideFooter")
+
+    if hideFooter then
+        footerHeight = 10 -- Small padding at bottom
+        frameHeight = containerHeight + titleHeight + (showSearchBar and searchBarHeight or 0) + footerHeight
+    elseif showSearchBar then
         frameHeight = containerHeight + titleHeight + searchBarHeight + footerHeight  -- 125 total
     else
         frameHeight = containerHeight + titleHeight + footerHeight  -- 80 total
@@ -451,7 +462,13 @@ end
 
 -- Update money display
 function BankFrame:UpdateMoney()
+    local hideFooter = addon.Modules.DB:GetSetting("hideFooter")
     local moneyFrame = getglobal("Guda_BankFrame_MoneyFrame")
+
+    if hideFooter then
+        if moneyFrame then moneyFrame:Hide() end
+        return
+    end
 
     if not moneyFrame then
         addon:Debug("Bank MoneyFrame not found! Checking parent...")
@@ -942,6 +959,24 @@ function BankFrame:UpdateSearchBarVisibility()
         -- Anchor ItemContainer directly to frame top (skip search bar space)
         itemContainer:ClearAllPoints()
         itemContainer:SetPoint("TOP", "Guda_BankFrame", "TOP", 0, -40)
+    end
+end
+
+-- Update footer visibility based on settings
+function BankFrame:UpdateFooterVisibility()
+    local hideFooter = addon.Modules.DB:GetSetting("hideFooter")
+    local toolbar = getglobal("Guda_BankFrame_Toolbar")
+    local moneyFrame = getglobal("Guda_BankFrame_MoneyFrame")
+
+    if hideFooter then
+        if toolbar then toolbar:Hide() end
+        if moneyFrame then moneyFrame:Hide() end
+    else
+        if toolbar then toolbar:Show() end
+        if moneyFrame then moneyFrame:Show() end
+        
+        -- Trigger layout updates to ensure they are correctly positioned
+        self:UpdateMoney()
     end
 end
 

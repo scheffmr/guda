@@ -91,6 +91,11 @@ function Guda_BagFrame_OnShow(self)
 		BagFrame:UpdateSearchBarVisibility()
 	end
 
+	-- Apply footer visibility setting
+	if BagFrame.UpdateFooterVisibility then
+		BagFrame:UpdateFooterVisibility()
+	end
+
 	BagFrame:Update()
 end
 
@@ -152,10 +157,17 @@ end
 
 -- Update bagline layout (hover option)
 function BagFrame:UpdateBaglineLayout()
-	local hoverBagline = addon.Modules.DB:GetSetting("hoverBagline")
+	local hideFooter = addon.Modules.DB:GetSetting("hideFooter")
 	local toolbar = getglobal("Guda_BagFrame_Toolbar")
 	if not toolbar then return end
 
+	if hideFooter then
+		toolbar:Hide()
+		return
+	end
+
+	local hoverBagline = addon.Modules.DB:GetSetting("hoverBagline")
+	
 	local bag0 = getglobal("Guda_BagFrame_Toolbar_BagSlot0")
 	local bag1 = getglobal("Guda_BagFrame_Toolbar_BagSlot1")
 	local bag2 = getglobal("Guda_BagFrame_Toolbar_BagSlot2")
@@ -528,7 +540,13 @@ function BagFrame:ResizeFrame(currentRow, currentCol, columns)
 	local searchBarHeight = 30
 	local footerHeight
 	local frameHeight
-	if showSearchBar then
+
+	local hideFooter = addon.Modules.DB:GetSetting("hideFooter")
+
+	if hideFooter then
+		footerHeight = 10 -- Small padding at bottom
+		frameHeight = containerHeight + titleHeight + (showSearchBar and searchBarHeight or 0) + footerHeight
+	elseif showSearchBar then
 		footerHeight = 55  -- Increased footer height when search bar is visible (toolbar 40px + spacing 15px)
 		frameHeight = containerHeight + titleHeight + searchBarHeight + footerHeight  -- 125 total
 	else
@@ -681,7 +699,13 @@ function BagFrame:PassesSearchFilter(itemData)
 end
 
 function BagFrame:UpdateMoney()
+	local hideFooter = addon.Modules.DB:GetSetting("hideFooter")
 	local moneyFrame = getglobal("Guda_BagFrame_MoneyFrame")
+
+	if hideFooter then
+		if moneyFrame then moneyFrame:Hide() end
+		return
+	end
 
 	if not moneyFrame then
 		addon:Debug("Guda_BagFrame exists: " .. tostring(getglobal("Guda_BagFrame") ~= nil))
@@ -1673,6 +1697,25 @@ function BagFrame:UpdateSearchBarVisibility()
 		-- Anchor ItemContainer directly to frame top (skip search bar space)
 		itemContainer:ClearAllPoints()
 		itemContainer:SetPoint("TOP", "Guda_BagFrame", "TOP", 0, -40)
+	end
+end
+
+-- Update footer visibility based on settings
+function BagFrame:UpdateFooterVisibility()
+	local hideFooter = addon.Modules.DB:GetSetting("hideFooter")
+	local toolbar = getglobal("Guda_BagFrame_Toolbar")
+	local moneyFrame = getglobal("Guda_BagFrame_MoneyFrame")
+
+	if hideFooter then
+		if toolbar then toolbar:Hide() end
+		if moneyFrame then moneyFrame:Hide() end
+	else
+		if toolbar then toolbar:Show() end
+		if moneyFrame then moneyFrame:Show() end
+		
+		-- Trigger layout updates to ensure they are correctly positioned
+		self:UpdateBaglineLayout()
+		self:UpdateMoney()
 	end
 end
 

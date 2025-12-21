@@ -302,6 +302,25 @@
                     </OnClick>
                 </Scripts>
             </CheckButton>
+
+            <!-- Hide Footer Checkbox -->
+            <CheckButton name="$parent_HideFooterCheckbox" inherits="OptionsCheckButtonTemplate">
+                <Anchors>
+                    <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent_HoverBaglineCheckbox">
+                        <Offset>
+                            <AbsDimension x="150" y="0"/>
+                        </Offset>
+                    </Anchor>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        Guda_SettingsPopup_HideFooterCheckbox_OnLoad(this)
+                    </OnLoad>
+                    <OnClick>
+                        Guda_SettingsPopup_HideFooterCheckbox_OnClick(this)
+                    </OnClick>
+                </Scripts>
+            </CheckButton>
         </Frames>
 
         <Scripts>
