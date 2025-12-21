@@ -11,6 +11,8 @@ end
 
 local buttons = {}
 local questItems = {}
+local flyoutButtons = {}
+local flyoutFrame
 
 -- Create a hidden tooltip for scanning
 local scanTooltip
@@ -113,27 +115,26 @@ function QuestItemBar:IsQuestItem(bagID, slotID)
     return isQuestItem, isQuestStarter
 end
 
-function QuestItemBar:PinItem(itemID)
+function QuestItemBar:PinItem(itemID, slot)
     if not itemID then return end
     local pins = addon.Modules.DB:GetSetting("questBarPinnedItems") or {}
     
-    -- Check if already pinned
-    for i = 1, 2 do
-        if pins[i] == itemID then return end
-    end
-    
-    -- Find first empty slot
-    for i = 1, 2 do
-        if not pins[i] then
-            pins[i] = itemID
-            addon.Modules.DB:SetSetting("questBarPinnedItems", pins)
-            self:Update()
-            return true
+    local targetSlot = slot or 1
+    if not slot then
+        -- Original logic: Find first empty slot or replace first
+        for i = 1, 2 do
+            if pins[i] == itemID then return end
+        end
+        
+        for i = 1, 2 do
+            if not pins[i] then
+                targetSlot = i
+                break
+            end
         end
     end
     
-    -- Replace first slot if both are full
-    pins[1] = itemID
+    pins[targetSlot] = itemID
     addon.Modules.DB:SetSetting("questBarPinnedItems", pins)
     self:Update()
     return true
@@ -308,6 +309,7 @@ function QuestItemBar:Update()
                 GameTooltip:AddLine("Ctrl-Right-Click to unpin.", 0.5, 0.5, 0.5)
                 GameTooltip:Show()
             end
+            QuestItemBar:ShowFlyout(this)
         end)
 
         button:SetScript("OnLeave", function()
@@ -316,6 +318,7 @@ function QuestItemBar:Update()
             else
                 GameTooltip:Hide()
             end
+            QuestItemBar:HideFlyout()
         end)
 
         button:ClearAllPoints()
@@ -338,6 +341,166 @@ function QuestItemBar:UpdateCooldowns()
             Guda_ItemButton_UpdateCooldown(button)
         end
     end
+    for _, button in ipairs(flyoutButtons) do
+        if button:IsShown() and Guda_ItemButton_UpdateCooldown then
+            Guda_ItemButton_UpdateCooldown(button)
+        end
+    end
+end
+
+function QuestItemBar:ShowFlyout(parent)
+    if not flyoutFrame then return end
+    
+    self:UpdateFlyout(parent)
+    flyoutFrame:Show()
+end
+
+function QuestItemBar:HideFlyout(immediate)
+    if not flyoutFrame then return end
+    
+    if immediate then
+        flyoutFrame:Hide()
+        flyoutFrame:SetScript("OnUpdate", nil)
+        return
+    end
+    
+    -- Delay hiding to allow moving mouse to the flyout
+    flyoutFrame.hideTime = GetTime() + 0.1
+    flyoutFrame:SetScript("OnUpdate", function()
+        if GetTime() > this.hideTime then
+            if not MouseIsOver(this) and (not this.parent or not MouseIsOver(this.parent)) then
+                this:Hide()
+            end
+            this:SetScript("OnUpdate", nil)
+        end
+    end)
+end
+
+function QuestItemBar:UpdateFlyout(parent)
+    if not flyoutFrame then return end
+    flyoutFrame.parent = parent
+    
+    local buttonSize = 37
+    local spacing = 2
+    
+    -- Collect items not in main buttons
+    local displayItems = {}
+    local mainItemIDs = {}
+    for i = 1, 2 do
+        local btn = buttons[i]
+        if btn and btn.hasItem and btn.itemData and btn.itemData.link then
+            local id = addon.Modules.Utils:ExtractItemID(btn.itemData.link)
+            if id then mainItemIDs[id] = true end
+        end
+    end
+    
+    for _, item in ipairs(questItems) do
+        local link = GetContainerItemLink(item.bagID, item.slotID)
+        local id = addon.Modules.Utils:ExtractItemID(link)
+        if id and not mainItemIDs[id] then
+            -- Avoid duplicates in flyout if multiple stacks exist (optional, but TrinketMenu does it)
+            local alreadyInFlyout = false
+            for _, existing in ipairs(displayItems) do
+                if existing.itemID == id then
+                    alreadyInFlyout = true
+                    break
+                end
+            end
+            
+            if not alreadyInFlyout then
+                table.insert(displayItems, {
+                    bagID = item.bagID,
+                    slotID = item.slotID,
+                    texture = item.texture,
+                    count = item.count,
+                    itemID = id,
+                    link = link
+                })
+            end
+        end
+    end
+    
+    -- Hide all flyout buttons first
+    for _, btn in ipairs(flyoutButtons) do
+        btn:Hide()
+    end
+    
+    if table.getn(displayItems) == 0 then
+        flyoutFrame:Hide()
+        return
+    end
+    
+    -- Position flyout above the parent button
+    flyoutFrame:ClearAllPoints()
+    flyoutFrame:SetPoint("BOTTOM", parent, "TOP", 0, 5)
+    
+    for i, item in ipairs(displayItems) do
+        local btn = flyoutButtons[i]
+        if not btn then
+            btn = CreateFrame("Button", "Guda_QuestItemFlyoutButton" .. i, flyoutFrame, "Guda_ItemButtonTemplate")
+            table.insert(flyoutButtons, btn)
+            
+            btn:SetScript("OnEnter", function()
+                Guda_ItemButton_OnEnter(this)
+                if flyoutFrame then flyoutFrame.hideTime = GetTime() + 5 end -- Keep open
+            end)
+            btn:SetScript("OnLeave", function()
+                Guda_ItemButton_OnLeave(this)
+                QuestItemBar:HideFlyout()
+            end)
+        end
+        
+        btn.bagID = item.bagID
+        btn.slotID = item.slotID
+        btn.hasItem = true
+        btn.itemData = { link = item.link }
+        btn.itemID = item.itemID
+        
+        local icon = getglobal(btn:GetName() .. "IconTexture")
+        icon:SetTexture(item.texture)
+        
+        local countText = getglobal(btn:GetName() .. "Count")
+        if item.count > 1 then
+            countText:SetText(item.count)
+            countText:Show()
+        else
+            countText:Hide()
+        end
+        
+        btn:SetScript("OnClick", function()
+            local targetSlot = 1
+            if flyoutFrame.parent then
+                -- Check if parent is Guda_QuestItemBarButton2
+                if flyoutFrame.parent:GetName() == "Guda_QuestItemBarButton2" then
+                    targetSlot = 2
+                end
+            end
+            
+            if arg1 == "LeftButton" then
+                QuestItemBar:PinItem(this.itemID, targetSlot)
+            elseif arg1 == "RightButton" then
+                -- Both clicks now work on targetSlot based on context, 
+                -- but we'll keep RightButton for slot 2 as a fallback/original behavior 
+                -- or just make it also use targetSlot if we want "both clicks work on mouse 1".
+                -- The requirement says "make both clicks work on mouse 1 instead of mouse 2 and mouse 1 clicks to separate bars"
+                -- This phrasing is a bit ambiguous, but contextually it means 
+                -- Mouse 1 on flyout button should replace the bar that was hovered.
+                QuestItemBar:PinItem(this.itemID, targetSlot)
+            end
+            QuestItemBar:HideFlyout(true)
+        end)
+        
+        btn:ClearAllPoints()
+        btn:SetPoint("BOTTOM", flyoutFrame, "BOTTOM", 0, (i-1) * (buttonSize + spacing) + 5)
+        btn:Show()
+        
+        if Guda_ItemButton_UpdateCooldown then
+            Guda_ItemButton_UpdateCooldown(btn)
+        end
+    end
+    
+    flyoutFrame:SetWidth(buttonSize + 10)
+    flyoutFrame:SetHeight(table.getn(displayItems) * (buttonSize + spacing) + 10)
 end
 
 -- Global wrappers for keybindings
@@ -365,6 +528,12 @@ function QuestItemBar:Initialize()
     frame:SetClampedToScreen(true)
     
     addon:ApplyBackdrop(frame, "DEFAULT_FRAME")
+    
+    -- Create flyout frame
+    flyoutFrame = CreateFrame("Frame", "Guda_QuestItemFlyout", UIParent)
+    flyoutFrame:SetFrameStrata("TOOLTIP")
+    flyoutFrame:Hide()
+    addon:ApplyBackdrop(flyoutFrame, "DEFAULT_FRAME")
     
     -- Handle dragging
     frame:RegisterForDrag("LeftButton")
