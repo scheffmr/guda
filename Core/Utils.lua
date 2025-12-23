@@ -173,20 +173,18 @@ function Utils:IsQuestItemTooltip(bagID, slotID)
     tooltip:ClearLines()
     tooltip:SetBagItem(bagID, slotID)
 
-    -- Check all tooltip lines for quest-related text
+    -- Check tooltip lines for explicit quest-related phrases (case-insensitive)
     for i = 1, tooltip:NumLines() do
         local line = getglobal("GudaBagScanTooltipTextLeft" .. i)
         if line then
             local text = line:GetText()
             if text then
-                -- Check for quest starter patterns
-                if string.find(text, "Quest Starter") or
-                   string.find(text, "This Item Begins a Quest") or
-                   string.find(text, "Use: Starts a Quest") then
-                    return true
-                -- Check for regular quest item patterns
-                elseif string.find(text, "Quest Item") or
-                       string.find(text, "Manual") then
+                local tl = string.lower(text)
+                -- Only match explicit quest markers to avoid misclassifying consumables/recipes
+                if string.find(tl, "quest starter") or
+                   string.find(tl, "this item begins a quest") or
+                   string.find(tl, "starts a quest") or
+                   string.find(tl, "quest item") then
                     return true
                 end
             end

@@ -36,8 +36,12 @@ local function IsItemUsable(bagID, slotID)
         local line = getglobal("Guda_QuestBarScanTooltipTextLeft" .. i)
         if line then
             local text = line:GetText()
-            if text and (string.find(text, "Use:") or string.find(text, "Starts a Quest")) then
-                return true
+            if text then
+                local tl = string.lower(text)
+                -- Match explicit usability phrases (case-insensitive). Avoid generic 'quest item' matches.
+                if string.find(tl, "use:") or string.find(tl, "right%-click") or string.find(tl, "right click") or string.find(tl, "click to") or string.find(tl, "starts a quest") then
+                    return true
+                end
             end
         end
     end
