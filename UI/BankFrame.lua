@@ -177,13 +177,29 @@ function BankFrame:Update()
         end
     end
 
-    self:DisplayItems(bankData, isOtherChar, charName)
+    local viewType = addon.Modules.DB:GetSetting("bankViewType") or "single"
+    if viewType == "category" then
+        self:DisplayItemsByCategory(bankData, isOtherChar, charName)
+    else
+        self:DisplayItems(bankData, isOtherChar, charName)
+    end
 
     -- Update money
     self:UpdateMoney()
 
     -- Update bank slots info
     self:UpdateBankSlotsInfo(bankData, isOtherChar)
+
+    -- Clean up unused section headers
+    local i = 1
+    while true do
+        local header = getglobal("Guda_BankFrame_SectionHeader" .. i)
+        if not header then break end
+        if not header.inUse then
+            header:Hide()
+        end
+        i = i + 1
+    end
 
     -- Clean up unused buttons AFTER display is complete (prevents drag/drop issues)
     for _, bankBagParent in pairs(bankBagParents) do
@@ -197,6 +213,152 @@ function BankFrame:Update()
             end
         end
     end
+end
+
+-- Helper to get or create section header
+function BankFrame:GetSectionHeader(index)
+    local name = "Guda_BankFrame_SectionHeader" .. index
+    local header = getglobal(name)
+    if not header then
+        header = CreateFrame("Frame", name, getglobal("Guda_BankFrame_ItemContainer"))
+        header:SetHeight(20)
+        local text = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        text:SetPoint("LEFT", header, "LEFT", 5, 0)
+        header.text = text
+    end
+    header.inUse = true
+    return header
+end
+
+-- Helper to get or create bank bag parent frame
+function BankFrame:GetBagParent(bagID)
+    local itemContainer = getglobal("Guda_BankFrame_ItemContainer")
+    if not bankBagParents[bagID] then
+        bankBagParents[bagID] = CreateFrame("Frame", "Guda_BankFrame_BagParent"..bagID, itemContainer)
+        bankBagParents[bagID]:SetAllPoints(itemContainer)
+        if bankBagParents[bagID].SetID then
+            bankBagParents[bagID]:SetID(bagID)
+        end
+    end
+    return bankBagParents[bagID]
+end
+
+-- Display items by category
+function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
+    local buttonSize = addon.Modules.DB:GetSetting("iconSize") or addon.Constants.BUTTON_SIZE
+    local spacing = addon.Modules.DB:GetSetting("iconSpacing") or addon.Constants.BUTTON_SPACING
+    local perRow = addon.Modules.DB:GetSetting("bankColumns") or 10
+    local itemContainer = getglobal("Guda_BankFrame_ItemContainer")
+
+    -- Reset headers
+    local idx = 1
+    while true do
+        local h = getglobal("Guda_BankFrame_SectionHeader" .. idx)
+        if not h then break end
+        h.inUse = false
+        idx = idx + 1
+    end
+
+    -- Group items by category
+    local categories = {}
+    local categoryList = {
+        "Equipment", "Consumable", "Quest", "Trade Goods", "Reagent", "Recipe", "Quiver", "Container", "Miscellaneous"
+    }
+    for _, cat in ipairs(categoryList) do categories[cat] = {} end
+
+    -- Bank main slots (bagID -1)
+    local bankMain = bankData[-1]
+    if bankMain and bankMain.slots then
+        for slotID, itemData in pairs(bankMain.slots) do
+            if itemData then
+                local cat = itemData.class or "Miscellaneous"
+                if itemData.equipSlot and itemData.equipSlot ~= "" then cat = "Equipment" end
+                if not categories[cat] then categories[cat] = {} end
+                table.insert(categories[cat], {bagID = -1, slotID = slotID, itemData = itemData})
+            end
+        end
+    end
+
+    -- Bank bags
+    for _, bagID in ipairs(addon.Constants.BANK_BAGS) do
+        if not hiddenBankBags[bagID] then
+            local bag = bankData[bagID]
+            if bag and bag.slots then
+                for slotID, itemData in pairs(bag.slots) do
+                    if itemData then
+                        local cat = itemData.class or "Miscellaneous"
+                        if itemData.equipSlot and itemData.equipSlot ~= "" then cat = "Equipment" end
+                        if not categories[cat] then categories[cat] = {} end
+                        table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
+                    end
+                end
+            end
+        end
+    end
+
+    -- Layout
+    local x, y = 5, -10
+    local headerIdx = 1
+    
+    for _, catName in ipairs(categoryList) do
+        local items = categories[catName]
+        if items and table.getn(items) > 0 then
+            -- Sort items in category
+            table.sort(items, function(a, b)
+                if a.itemData.quality ~= b.itemData.quality then
+                    return a.itemData.quality > b.itemData.quality
+                end
+                return (a.itemData.name or "") < (b.itemData.name or "")
+            end)
+
+            -- Add Header
+            local header = self:GetSectionHeader(headerIdx)
+            headerIdx = headerIdx + 1
+            header:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", 0, y)
+            header:SetWidth(perRow * (buttonSize + spacing))
+            header.text:SetText(catName)
+            header:Show()
+            
+            y = y - 20
+            
+            local col = 0
+            for _, item in ipairs(items) do
+                local bagID = item.bagID
+                local slot = item.slotID
+                local itemData = item.itemData
+                
+                local bagParent = self:GetBagParent(bagID)
+                local button = Guda_GetItemButton(bagParent)
+                
+                button:SetParent(bagParent)
+                button:SetWidth(buttonSize)
+                button:SetHeight(buttonSize)
+                button:ClearAllPoints()
+                button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + (col * (buttonSize + spacing)), y)
+                button:Show()
+                
+                local matchesFilter = self:PassesSearchFilter(itemData)
+                
+                Guda_ItemButton_SetItem(button, bagID, slot, itemData, true, isOtherChar and charName or nil, matchesFilter, true)
+                button.inUse = true
+                
+                col = col + 1
+                if col >= perRow then
+                    col = 0
+                    y = y - (buttonSize + spacing)
+                end
+            end
+            
+            if col > 0 then
+                y = y - (buttonSize + spacing)
+            end
+            y = y - 5 -- Padding between sections
+        end
+    end
+
+    -- Update container height
+    itemContainer:SetHeight(math.abs(y) + 20)
+    self:UpdateFrameSize()
 end
 
 -- Display items
@@ -304,15 +466,7 @@ function BankFrame:DisplayItems(bankData, isOtherChar, charName)
                 local matchesFilter = self:PassesSearchFilter(itemData)
 
                 -- Ensure a per-bag parent frame exists and carries the bag ID
-                local bankBagParent
-                if not bankBagParents[bagID] then
-                    bankBagParents[bagID] = CreateFrame("Frame", "Guda_BankFrame_BankBagParent"..bagID, itemContainer)
-                    bankBagParents[bagID]:SetAllPoints(itemContainer)
-                    if bankBagParents[bagID].SetID then
-                        bankBagParents[bagID]:SetID(bagID)
-                    end
-                end
-                bankBagParent = bankBagParents[bagID]
+                local bankBagParent = self:GetBagParent(bagID)
 
                 local button = Guda_GetItemButton(bankBagParent)
                 if button.isBagSlot then break end
@@ -854,14 +1008,16 @@ function BankFrame:EnsureBagButtonsInitialized()
             btn = CreateFrame("Button", name, toolbar, "ItemButtonTemplate")
             -- Anchor sequenced to the left; position similar to XML
             if suffix == "BankBagMain" then
-                btn:SetSize(24, 24)
+                btn:SetWidth(24)
+                btn:SetHeight(24)
                 btn:SetPoint("LEFT", toolbar, "LEFT", 13, 0)
             else
                 -- Determine previous button
                 local prev
                 if bagID == 5 then prev = getglobal("Guda_BankFrame_Toolbar_BankBagMain")
                 else prev = getglobal("Guda_BankFrame_Toolbar_BankBag"..tostring(bagID-1)) end
-                btn:SetSize(24, 24)
+                btn:SetWidth(24)
+                btn:SetHeight(24)
                 if prev then
                     btn:SetPoint("LEFT", prev, "RIGHT", 2, 0)
                 else

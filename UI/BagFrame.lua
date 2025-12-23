@@ -322,7 +322,12 @@ function BagFrame:Update()
 	end
 
 	-- Display items
-	self:DisplayItems(bagData, isOtherChar, charName)
+	local viewType = addon.Modules.DB:GetSetting("bagViewType") or "single"
+	if viewType == "category" then
+		self:DisplayItemsByCategory(bagData, isOtherChar, charName)
+	else
+		self:DisplayItems(bagData, isOtherChar, charName)
+	end
 
 	-- Update money
 	self:UpdateMoney()
@@ -330,8 +335,19 @@ function BagFrame:Update()
 	-- Update bag slots info
 	self:UpdateBagSlotsInfo(bagData, isOtherChar)
 
-	-- Update bagline layout (hover option)
+ -- Update bagline layout (hover option)
 	self:UpdateBaglineLayout()
+
+    -- Clean up unused section headers
+    local i = 1
+    while true do
+        local header = getglobal("Guda_BagFrame_SectionHeader" .. i)
+        if not header then break end
+        if not header.inUse then
+            header:Hide()
+        end
+        i = i + 1
+    end
 
 	-- Clean up unused buttons AFTER display is complete (prevents drag/drop issues)
 	for _, bagParent in pairs(bagParents) do
@@ -345,6 +361,157 @@ function BagFrame:Update()
 			end
 		end
 	end
+end
+
+-- Helper to get or create section header
+function BagFrame:GetSectionHeader(index)
+    local name = "Guda_BagFrame_SectionHeader" .. index
+    local header = getglobal(name)
+    if not header then
+        header = CreateFrame("Frame", name, getglobal("Guda_BagFrame_ItemContainer"))
+        header:SetHeight(20)
+        local text = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        text:SetPoint("LEFT", header, "LEFT", 5, 0)
+        header.text = text
+    end
+    header.inUse = true
+    return header
+end
+
+-- Helper to get or create bag parent frame
+function BagFrame:GetBagParent(bagID)
+    local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
+    if not bagParents[bagID] then
+        bagParents[bagID] = CreateFrame("Frame", "Guda_BagFrame_BagParent"..bagID, itemContainer)
+        bagParents[bagID]:SetAllPoints(itemContainer)
+        if bagParents[bagID].SetID then
+            bagParents[bagID]:SetID(bagID)
+        end
+    end
+    return bagParents[bagID]
+end
+
+-- Display items by category
+function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
+    local buttonSize = addon.Modules.DB:GetSetting("iconSize") or addon.Constants.BUTTON_SIZE
+    local spacing = addon.Modules.DB:GetSetting("iconSpacing") or addon.Constants.BUTTON_SPACING
+    local perRow = addon.Modules.DB:GetSetting("bagColumns") or 10
+    local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
+
+    -- Reset headers
+    local idx = 1
+    while true do
+        local h = getglobal("Guda_BagFrame_SectionHeader" .. idx)
+        if not h then break end
+        h.inUse = false
+        idx = idx + 1
+    end
+
+    -- Group items by category
+    local categories = {}
+    local categoryList = {
+        "Equipment", "Consumable", "Quest", "Trade Goods", "Reagent", "Recipe", "Quiver", "Container", "Miscellaneous", "Soul Bag", "Keyring"
+    }
+    for _, cat in ipairs(categoryList) do categories[cat] = {} end
+
+    for _, bagID in ipairs(addon.Constants.BAGS) do
+        if not hiddenBags[bagID] then
+            local bag = bagData[bagID]
+            if bag and bag.slots then
+                for slotID, itemData in pairs(bag.slots) do
+                    if itemData then
+                        local cat = itemData.class or "Miscellaneous"
+                        -- Special handling for equipment
+                        if itemData.equipSlot and itemData.equipSlot ~= "" then
+                            cat = "Equipment"
+                        end
+                        if not categories[cat] then categories[cat] = {} end
+                        table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
+                    end
+                end
+            end
+        end
+    end
+
+    -- Handle Keyring if visible
+    if showKeyring and not hiddenBags[-2] then
+        local bag = bagData[-2]
+        if bag and bag.slots then
+            for slotID, itemData in pairs(bag.slots) do
+                if itemData then
+                    table.insert(categories["Keyring"], {bagID = -2, slotID = slotID, itemData = itemData})
+                end
+            end
+        end
+    end
+
+    -- Layout
+    local x, y = 10, -10
+    local headerIdx = 1
+    local totalHeight = 20
+
+    for _, catName in ipairs(categoryList) do
+        local items = categories[catName]
+        if items and table.getn(items) > 0 then
+            -- Sort items in category
+            table.sort(items, function(a, b)
+                if a.itemData.quality ~= b.itemData.quality then
+                    return a.itemData.quality > b.itemData.quality
+                end
+                return (a.itemData.name or "") < (b.itemData.name or "")
+            end)
+
+            -- Add Header
+            local header = self:GetSectionHeader(headerIdx)
+            headerIdx = headerIdx + 1
+            header:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", 0, y)
+            header:SetWidth(perRow * (buttonSize + spacing))
+            header.text:SetText(catName)
+            header:Show()
+            
+            y = y - 20
+            
+            local col = 0
+            for _, item in ipairs(items) do
+                local bagID = item.bagID
+                local slot = item.slotID
+                local itemData = item.itemData
+                
+                local bagParent = self:GetBagParent(bagID)
+                local button = Guda_GetItemButton(bagParent)
+                
+                button:SetParent(bagParent)
+                button:SetWidth(buttonSize)
+                button:SetHeight(buttonSize)
+                button:ClearAllPoints()
+                button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + (col * (buttonSize + spacing)), y)
+                button:Show()
+                
+                local matchesFilter = true
+                if searchText ~= "" then
+                    matchesFilter = BagFrame:MatchesSearch(itemData, searchText)
+                end
+                
+                Guda_ItemButton_SetItem(button, bagID, slot, itemData, false, isOtherChar and charName or nil, matchesFilter, true)
+                button.inUse = true
+                
+                col = col + 1
+                if col >= perRow then
+                    col = 0
+                    y = y - (buttonSize + spacing)
+                end
+            end
+            
+            if col > 0 then
+                y = y - (buttonSize + spacing)
+            end
+            y = y - 5 -- Padding between sections
+        end
+    end
+
+    -- Update container height
+    itemContainer:SetHeight(math.abs(y) + 20)
+    self:UpdateFrameSize()
 end
 
 -- Display items
@@ -465,17 +632,7 @@ function BagFrame:DisplayItems(bagData, isOtherChar, charName)
 		if numSlots and numSlots > 0 then
 		-- Iterate through ALL slots (1 to numSlots) to show empty slots too
 		-- Ensure a per-bag parent frame exists and carries the bag ID (Blizzard expects parent:GetID() == bagID)
-			local bagParent
-			do
-				if not bagParents[bagID] then
-					bagParents[bagID] = CreateFrame("Frame", "Guda_BagFrame_BagParent"..bagID, itemContainer)
-					bagParents[bagID]:SetAllPoints(itemContainer)
-					if bagParents[bagID].SetID then
-						bagParents[bagID]:SetID(bagID)
-					end
-				end
-				bagParent = bagParents[bagID]
-			end
+			local bagParent = self:GetBagParent(bagID)
 
 			for slot = 1, numSlots do
 				local itemData = bag and bag.slots and bag.slots[slot] or nil
