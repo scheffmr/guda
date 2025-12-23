@@ -373,7 +373,7 @@ function BagFrame:GetSectionHeader(index)
         header = CreateFrame("Frame", name, getglobal("Guda_BagFrame_ItemContainer"))
         header:SetHeight(20)
         local text = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        text:SetPoint("LEFT", header, "LEFT", 5, 0)
+        text:SetPoint("LEFT", header, "LEFT", 0, 0)
         header.text = text
     end
     header.inUse = true
@@ -559,7 +559,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
             end
             
             if blockHeight > rowMaxHeight then rowMaxHeight = blockHeight end
-            currentX = currentX + blockWidth + 20
+            currentX = currentX + blockWidth + 20 -- 20px gap between categories
         end
     end
 
@@ -587,7 +587,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
 
     if hasAnyBottom then
         y = y - 10
-        local col = 0
+        local currentBottomX = 0
         local sectionMaxHeight = 0
 
         for _, sec in ipairs(bottomSections) do
@@ -611,8 +611,8 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 local blockHeight = 20 + (blockRows * (buttonSize + spacing))
 
                 -- Check if it fits in current row (Inline block for bottom sections too)
-                if col > 0 and (col * (buttonSize + spacing)) + blockWidth > totalWidth + 5 then
-                    col = 0
+                if currentBottomX > 0 and currentBottomX + blockWidth + 20 > totalWidth + 5 then
+                    currentBottomX = 0
                     y = y - sectionMaxHeight - 5
                     sectionMaxHeight = 0
                 end
@@ -620,7 +620,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 -- Add Header
                 local header = self:GetSectionHeader(headerIdx)
                 headerIdx = headerIdx + 1
-                header:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + (col * (buttonSize + spacing)), y)
+                header:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + currentBottomX, y)
                 header:SetWidth(blockWidth)
                 header.text:SetText(sec.name)
                 header:Show()
@@ -635,7 +635,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                     button:SetWidth(buttonSize)
                     button:SetHeight(buttonSize)
                     button:ClearAllPoints()
-                    button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + ((col + sCol) * (buttonSize + spacing)), itemY - (sRow * (buttonSize + spacing)))
+                    button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + currentBottomX + (sCol * (buttonSize + spacing)), itemY - (sRow * (buttonSize + spacing)))
                     button:Show()
                     Guda_ItemButton_SetItem(button, item.bagID, item.slotID, item.itemData, false, isOtherChar and charName or nil, self:PassesSearchFilter(item.itemData), isOtherChar)
                     button.inUse = true
@@ -648,18 +648,18 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 end
 
                 if blockHeight > sectionMaxHeight then sectionMaxHeight = blockHeight end
-                col = col + blockCols + 1 -- Add 1 slot worth of spacing (around 40px) instead of 20px gap logic
+                currentBottomX = currentBottomX + blockWidth + 20 -- Match the 20px gap used in top categories
                 
                 -- If we wrapped exactly at the end of a block
-                if (col * (buttonSize + spacing)) >= totalWidth then
-                    col = 0
+                if currentBottomX >= totalWidth then
+                    currentBottomX = 0
                     y = y - sectionMaxHeight - 5
                     sectionMaxHeight = 0
                 end
             end
         end
         
-        if col > 0 then
+        if currentBottomX > 0 then
             y = y - sectionMaxHeight
         end
     end
