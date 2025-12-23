@@ -44,6 +44,8 @@ function TrackedItemBar:ScanForTrackedItems()
                         itemCounts[id] = 0
                         itemTextures[id] = texture
                         itemLinks[id] = link
+                        itemCounts[id .. "_bag"] = bagID
+                        itemCounts[id .. "_slot"] = slotID
                         table.insert(itemOrder, id)
                     end
                     itemCounts[id] = itemCounts[id] + count
@@ -57,7 +59,9 @@ function TrackedItemBar:ScanForTrackedItems()
             itemID = id,
             texture = itemTextures[id],
             count = itemCounts[id],
-            link = itemLinks[id]
+            link = itemLinks[id],
+            bagID = itemCounts[id .. "_bag"],
+            slotID = itemCounts[id .. "_slot"]
         })
     end
 end
@@ -113,9 +117,9 @@ function TrackedItemBar:Update()
         button.hasItem = true
         button.itemData = { link = info.link }
         button.itemID = info.itemID
-        button.isReadOnly = true -- Don't allow regular clicks/interaction like usage? 
-        -- Actually user didn't specify usage, but "action bar type" suggests it might be usable.
-        -- But "tracked items" usually means materials or currencies.
+        button.bagID = info.bagID
+        button.slotID = info.slotID
+        button.isReadOnly = false -- Changed to false to allow interaction and tooltips showing usage
         
         local icon = getglobal(button:GetName() .. "IconTexture")
         icon:SetTexture(info.texture)
@@ -126,7 +130,7 @@ function TrackedItemBar:Update()
         countText:Show()
         
         button:SetScript("OnClick", function()
-            if IsControlKeyDown() then
+            if IsAltKeyDown() and arg1 == "LeftButton" then
                 -- Un-track item
                 local itemID = this.itemID
                 if itemID then
@@ -139,6 +143,11 @@ function TrackedItemBar:Update()
                         Guda.Modules.BagFrame:Update()
                     end
                     TrackedItemBar:Update()
+                end
+            else
+                -- Use item
+                if this.bagID and this.slotID then
+                    UseContainerItem(this.bagID, this.slotID)
                 end
             end
         end)

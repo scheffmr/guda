@@ -321,7 +321,7 @@ function QuestItemBar:Update()
                         UseContainerItem(this.bagID, this.slotID)
                     end
                 elseif arg1 == "RightButton" then
-                    if IsControlKeyDown() then
+                    if IsAltKeyDown() then
                         -- Clear pin for this slot
                         local pins = addon.Modules.DB:GetSetting("questBarPinnedItems") or {}
                         pins[index] = nil
@@ -353,7 +353,7 @@ function QuestItemBar:Update()
                         -- Pinning from cursor is hard in 1.12 without hooks.
                     end
                 elseif arg1 == "RightButton" then
-                    if IsControlKeyDown() then
+                    if IsAltKeyDown() then
                         -- Clear pin for this slot
                         local pins = addon.Modules.DB:GetSetting("questBarPinnedItems") or {}
                         pins[index] = nil
@@ -374,7 +374,7 @@ function QuestItemBar:Update()
                 GameTooltip:SetText("Quest Slot " .. index)
                 GameTooltip:AddLine("Auto-fills with usable quest items.", 1, 1, 1)
                 GameTooltip:AddLine("Alt-Click an item in bags to pin it.", 0, 1, 0)
-                GameTooltip:AddLine("Ctrl-Right-Click to unpin.", 0.5, 0.5, 0.5)
+                GameTooltip:AddLine("Alt-Right-Click to unpin.", 0.5, 0.5, 0.5)
                 GameTooltip:Show()
             end
             

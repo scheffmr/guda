@@ -333,16 +333,36 @@ function Guda_ItemButton_OnLoad(self)
     end
     
     self:SetScript("OnClick", function()
-        if IsAltKeyDown() and this.hasItem and not this.otherChar and not this.isReadOnly then
+        if IsAltKeyDown() and arg1 == "LeftButton" and this.hasItem and not this.otherChar and not this.isReadOnly then
             local link = GetContainerItemLink(this.bagID, this.slotID)
             if link and addon and addon.Modules and addon.Modules.Utils then
                 local itemID = addon.Modules.Utils:ExtractItemID(link)
-                if itemID and addon.Modules.QuestItemBar and addon.Modules.QuestItemBar.PinItem then
+                if itemID then
                     local isQuest = IsQuestItem(this.bagID, this.slotID)
-                    if isQuest then
+                    if isQuest and addon.Modules.QuestItemBar and addon.Modules.QuestItemBar.PinItem then
                         addon.Modules.QuestItemBar:PinItem(itemID)
                         return
                     end
+                    
+                    local trackedItems = addon.Modules.DB:GetSetting("trackedItems") or {}
+                    if trackedItems[itemID] then
+                        trackedItems[itemID] = nil
+                    else
+                        trackedItems[itemID] = true
+                    end
+                    addon.Modules.DB:SetSetting("trackedItems", trackedItems)
+                    
+                    -- Update all item buttons
+                    if Guda.Modules.BagFrame and Guda.Modules.BagFrame.Update then
+                        Guda.Modules.BagFrame:Update()
+                    end
+                    if Guda.Modules.BankFrame and Guda.Modules.BankFrame.Update then
+                        Guda.Modules.BankFrame:Update()
+                    end
+                    if Guda.Modules.TrackedItemBar and Guda.Modules.TrackedItemBar.Update then
+                        Guda.Modules.TrackedItemBar:Update()
+                    end
+                    return
                 end
             end
         end
@@ -768,36 +788,8 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
 		end
 
         -- Handle tracking toggle on click
-        if not self.isReadOnly and not self.otherChar then
-            local old_OnClick = self:GetScript("OnClick")
-            self:SetScript("OnClick", function()
-                if IsControlKeyDown() then
-                    local itemID = addon.Modules.Utils:ExtractItemID(GetContainerItemLink(this:GetParent():GetID(), this:GetID()))
-                    if itemID then
-                        local trackedItems = addon.Modules.DB:GetSetting("trackedItems") or {}
-                        if trackedItems[itemID] then
-                            trackedItems[itemID] = nil
-                        else
-                            trackedItems[itemID] = true
-                        end
-                        addon.Modules.DB:SetSetting("trackedItems", trackedItems)
-                        
-                        -- Update all item buttons
-                        if Guda.Modules.BagFrame and Guda.Modules.BagFrame.Update then
-                            Guda.Modules.BagFrame:Update()
-                        end
-                        if Guda.Modules.BankFrame and Guda.Modules.BankFrame.Update then
-                            Guda.Modules.BankFrame:Update()
-                        end
-                        if Guda.Modules.TrackedItemBar and Guda.Modules.TrackedItemBar.Update then
-                            Guda.Modules.TrackedItemBar:Update()
-                        end
-                    end
-                elseif old_OnClick then
-                    old_OnClick()
-                end
-            end)
-        end
+        -- Note: Tracking toggle is now handled in the main OnClick script above to avoid conflicts
+        -- and unified with QuestItemBar pinning logic.
 
         self:Show()
     else
