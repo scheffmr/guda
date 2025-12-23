@@ -191,8 +191,10 @@ function BankFrame:Update()
 
     if viewType == "category" then
         self:DisplayItemsByCategory(bankData, isOtherChar, charName)
+        if getglobal("Guda_BankFrame_SortButton") then getglobal("Guda_BankFrame_SortButton"):Hide() end
     else
         self:DisplayItems(bankData, isOtherChar, charName)
+        if getglobal("Guda_BankFrame_SortButton") then getglobal("Guda_BankFrame_SortButton"):Show() end
     end
 
     -- Update money
@@ -253,18 +255,45 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
     -- Group items by category
     local categories = {}
     local categoryList = {
-        "Equipment", "Consumable", "Quest", "Trade Goods", "Reagent", "Recipe", "Quiver", "Container", "Miscellaneous"
+        "Weapon", "Armor", "Consumable", "Food", "Drink", "Quest", "Trade Goods", "Reagent", "Recipe", "Quiver", "Container", "Soul Bag", "Miscellaneous"
     }
     for _, cat in ipairs(categoryList) do categories[cat] = {} end
+
+    -- Helper to assign category
+    local function GetItemCategory(itemData)
+        local cat = itemData.class or "Miscellaneous"
+        
+        -- Split Equipment into Weapon and Armor
+        if itemData.equipSlot and itemData.equipSlot ~= "" then
+            if itemData.class == "Weapon" or itemData.class == "Armor" then
+                cat = itemData.class
+            else
+                cat = "Armor"
+            end
+        end
+
+        -- Detect Food and Drink
+        if itemData.class == "Consumable" then
+            local sub = itemData.subclass or ""
+            if sub == "Food & Drink" or string.find(sub, "Food") or string.find(sub, "Drink") then
+                if string.find(sub, "Drink") then
+                    cat = "Drink"
+                else
+                    cat = "Food"
+                end
+            end
+        end
+
+        if not categories[cat] then cat = "Miscellaneous" end
+        return cat
+    end
 
     -- Bank main slots (bagID -1)
     local bankMain = bankData[-1]
     if bankMain and bankMain.slots then
         for slotID, itemData in pairs(bankMain.slots) do
             if itemData then
-                local cat = itemData.class or "Miscellaneous"
-                if itemData.equipSlot and itemData.equipSlot ~= "" then cat = "Equipment" end
-                if not categories[cat] then categories[cat] = {} end
+                local cat = GetItemCategory(itemData)
                 table.insert(categories[cat], {bagID = -1, slotID = slotID, itemData = itemData})
             end
         end
@@ -277,9 +306,7 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
             if bag and bag.slots then
                 for slotID, itemData in pairs(bag.slots) do
                     if itemData then
-                        local cat = itemData.class or "Miscellaneous"
-                        if itemData.equipSlot and itemData.equipSlot ~= "" then cat = "Equipment" end
-                        if not categories[cat] then categories[cat] = {} end
+                        local cat = GetItemCategory(itemData)
                         table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
                     end
                 end
@@ -294,8 +321,11 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
     for _, catName in ipairs(categoryList) do
         local items = categories[catName]
         if items and table.getn(items) > 0 then
-            -- Sort items in category
+            -- Sort items in category: Subclass > Quality > Name
             table.sort(items, function(a, b)
+                if a.itemData.subclass ~= b.itemData.subclass then
+                    return (a.itemData.subclass or "") < (b.itemData.subclass or "")
+                end
                 if a.itemData.quality ~= b.itemData.quality then
                     return a.itemData.quality > b.itemData.quality
                 end

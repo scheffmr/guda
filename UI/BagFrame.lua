@@ -336,8 +336,10 @@ function BagFrame:Update()
 
 	if viewType == "category" then
 		self:DisplayItemsByCategory(bagData, isOtherChar, charName)
+		if getglobal("Guda_BagFrame_SortButton") then getglobal("Guda_BagFrame_SortButton"):Hide() end
 	else
 		self:DisplayItems(bagData, isOtherChar, charName)
+		if getglobal("Guda_BagFrame_SortButton") then getglobal("Guda_BagFrame_SortButton"):Show() end
 	end
 
 	-- Update money
@@ -401,7 +403,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
     -- Group items by category
     local categories = {}
     local categoryList = {
-        "Equipment", "Consumable", "Quest", "Trade Goods", "Reagent", "Recipe", "Quiver", "Container", "Miscellaneous", "Soul Bag", "Keyring"
+        "Weapon", "Armor", "Consumable", "Food", "Drink", "Quest", "Trade Goods", "Reagent", "Recipe", "Quiver", "Container", "Soul Bag", "Keyring", "Miscellaneous"
     }
     for _, cat in ipairs(categoryList) do categories[cat] = {} end
 
@@ -412,11 +414,33 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 for slotID, itemData in pairs(bag.slots) do
                     if itemData then
                         local cat = itemData.class or "Miscellaneous"
-                        -- Special handling for equipment
+                        
+                        -- Split Equipment into Weapon and Armor
                         if itemData.equipSlot and itemData.equipSlot ~= "" then
-                            cat = "Equipment"
+                            if itemData.class == "Weapon" or itemData.class == "Armor" then
+                                cat = itemData.class
+                            else
+                                cat = "Armor" -- Accessories etc usually fall here if equippable
+                            end
                         end
-                        if not categories[cat] then categories[cat] = {} end
+
+                        -- Detect Food and Drink
+                        if itemData.class == "Consumable" then
+                            local sub = itemData.subclass or ""
+                            if sub == "Food & Drink" or string.find(sub, "Food") or string.find(sub, "Drink") then
+                                -- Try to be more specific if possible, but "Food & Drink" is the standard subclass
+                                -- For simplicity we can check item name or texture if we wanted to split, 
+                                -- but user asked for "Food", "Drink".
+                                -- If we can't easily distinguish, we'll put them in "Food" or "Drink" based on subclass text
+                                if string.find(sub, "Drink") then
+                                    cat = "Drink"
+                                else
+                                    cat = "Food"
+                                end
+                            end
+                        end
+
+                        if not categories[cat] then cat = "Miscellaneous" end
                         table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
                     end
                 end
@@ -444,8 +468,11 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
     for _, catName in ipairs(categoryList) do
         local items = categories[catName]
         if items and table.getn(items) > 0 then
-            -- Sort items in category
+            -- Sort items in category: Subclass > Quality > Name
             table.sort(items, function(a, b)
+                if a.itemData.subclass ~= b.itemData.subclass then
+                    return (a.itemData.subclass or "") < (b.itemData.subclass or "")
+                end
                 if a.itemData.quality ~= b.itemData.quality then
                     return a.itemData.quality > b.itemData.quality
                 end
