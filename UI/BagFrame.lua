@@ -474,6 +474,27 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
         end
     end
 
+    -- Calculate total empty slots and find first available one for drop target
+    local totalFreeSlots = 0
+    local firstFreeBag, firstFreeSlot
+    for _, bagID in ipairs(addon.Constants.BAGS) do
+        if not hiddenBags[bagID] then
+            local bag = bagData[bagID]
+            if bag then
+                totalFreeSlots = totalFreeSlots + (bag.freeSlots or 0)
+                if not firstFreeBag and (bag.freeSlots or 0) > 0 then
+                    for s = 1, (bag.numSlots or 0) do
+                        if not bag.slots or not bag.slots[s] then
+                            firstFreeBag = bagID
+                            firstFreeSlot = s
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     -- Handle Keyring if visible
     if showKeyring and not hiddenBags[-2] then
         local bag = bagData[-2]
@@ -566,11 +587,12 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
     -- Update Y for bottom sections
     local y = currentY + rowMaxHeight
     
-    -- Special sections at bottom (Hearthstone, Mount, Tools)
+    -- Special sections at bottom (Hearthstone, Mount, Tools, Empty)
     local bottomSections = {
         { name = "Home", items = specialItems.Hearthstone },
         { name = "Mounts", items = specialItems.Mount },
-        { name = "Tools", items = specialItems.Tools }
+        { name = "Tools", items = specialItems.Tools },
+        { name = "Empty", items = {} }
     }
     
     local x = startX
@@ -593,6 +615,9 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
         for _, sec in ipairs(bottomSections) do
             local items = sec.items
             local numItems = table.getn(items)
+            if sec.name == "Empty" then
+                numItems = (totalFreeSlots > 0) and 1 or 0
+            end
             if numItems > 0 then
                 -- Sort Tools (Hearthstone/Mounts don't usually need it but good for consistency)
                 if sec.name == "Tools" then
@@ -628,22 +653,48 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 local itemY = y - 20
                 local sCol = 0
                 local sRow = 0
-                for _, item in ipairs(items) do
-                    local bagParent = self:GetBagParent(item.bagID)
+                
+                if sec.name == "Empty" then
+                    -- Display one empty slot button with count
+                    local bagID = firstFreeBag or 0
+                    local slotID = firstFreeSlot or 1
+                    local bagParent = self:GetBagParent(bagID)
                     local button = Guda_GetItemButton(bagParent)
                     button:SetParent(bagParent)
                     button:SetWidth(buttonSize)
                     button:SetHeight(buttonSize)
                     button:ClearAllPoints()
-                    button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + currentBottomX + (sCol * (buttonSize + spacing)), itemY - (sRow * (buttonSize + spacing)))
+                    button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + currentBottomX, itemY)
                     button:Show()
-                    Guda_ItemButton_SetItem(button, item.bagID, item.slotID, item.itemData, false, isOtherChar and charName or nil, self:PassesSearchFilter(item.itemData), isOtherChar)
-                    button.inUse = true
                     
-                    sCol = sCol + 1
-                    if sCol >= blockCols then
-                        sCol = 0
-                        sRow = sRow + 1
+                    local emptyItemData = { 
+                        texture = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Bag", 
+                        count = totalFreeSlots, 
+                        name = "Empty Slots" 
+                    }
+                    -- Use fake data but real IDs for drop handling
+                    Guda_ItemButton_SetItem(button, bagID, slotID, emptyItemData, false, isOtherChar and charName or nil, true, true)
+                    -- Ensure it's not actually read-only for drop behavior (it should still receive clicks/drops)
+                    button.isReadOnly = false
+                    button.inUse = true
+                else
+                    for _, item in ipairs(items) do
+                        local bagParent = self:GetBagParent(item.bagID)
+                        local button = Guda_GetItemButton(bagParent)
+                        button:SetParent(bagParent)
+                        button:SetWidth(buttonSize)
+                        button:SetHeight(buttonSize)
+                        button:ClearAllPoints()
+                        button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + currentBottomX + (sCol * (buttonSize + spacing)), itemY - (sRow * (buttonSize + spacing)))
+                        button:Show()
+                        Guda_ItemButton_SetItem(button, item.bagID, item.slotID, item.itemData, false, isOtherChar and charName or nil, self:PassesSearchFilter(item.itemData), isOtherChar)
+                        button.inUse = true
+                        
+                        sCol = sCol + 1
+                        if sCol >= blockCols then
+                            sCol = 0
+                            sRow = sRow + 1
+                        end
                     end
                 end
 
