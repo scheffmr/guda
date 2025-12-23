@@ -226,19 +226,25 @@ function QuestItemBar:Update()
             
             -- Set up the button once
             button:RegisterForDrag("LeftButton")
-            button:SetScript("OnDragStart", function()
-                if IsShiftKeyDown() then
-                    this:GetParent():StartMoving()
-                    this:GetParent().isMoving = true
+            button:SetScript("OnDragStart", function() end)
+            button:SetScript("OnReceiveDrag", function() end)
+            button:SetScript("OnMouseDown", function()
+                if arg1 == "LeftButton" then
+                    if IsShiftKeyDown() then
+                        this:GetParent():StartMoving()
+                        this:GetParent().isMoving = true
+                    end
                 end
             end)
-            button:SetScript("OnDragStop", function()
-                local parent = this:GetParent()
-                if parent.isMoving then
-                    parent:StopMovingOrSizing()
-                    parent.isMoving = false
-                    local point, _, relativePoint, x, y = parent:GetPoint()
-                    addon.Modules.DB:SetSetting("questBarPosition", {point = point, relativePoint = relativePoint, x = x, y = y})
+            button:SetScript("OnMouseUp", function()
+                if arg1 == "LeftButton" then
+                    local parent = this:GetParent()
+                    if parent.isMoving then
+                        parent:StopMovingOrSizing()
+                        parent.isMoving = false
+                        local point, _, relativePoint, x, y = parent:GetPoint()
+                        addon.Modules.DB:SetSetting("questBarPosition", {point = point, relativePoint = relativePoint, x = x, y = y})
+                    end
                 end
             end)
         end
@@ -534,6 +540,10 @@ function QuestItemBar:UpdateFlyout(parent)
             btn = CreateFrame("Button", "Guda_QuestItemFlyoutButton" .. i, flyoutFrame, "Guda_ItemButtonTemplate")
             table.insert(flyoutButtons, btn)
             
+            btn:SetScript("OnDragStart", function() end)
+            btn:SetScript("OnReceiveDrag", function() end)
+            btn:SetScript("OnMouseDown", function() end)
+            
             btn:SetScript("OnEnter", function()
                 Guda_ItemButton_OnEnter(this)
                 if flyoutFrame then flyoutFrame.hideTime = GetTime() + 5 end -- Keep open
@@ -637,13 +647,19 @@ function QuestItemBar:Initialize()
     
     -- Handle dragging
     frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", function()
-        this:StartMoving()
+    frame:SetScript("OnMouseDown", function()
+        if arg1 == "LeftButton" then
+            this:StartMoving()
+            this.isMoving = true
+        end
     end)
-    frame:SetScript("OnDragStop", function()
-        this:StopMovingOrSizing()
-        local point, _, relativePoint, x, y = this:GetPoint()
-        addon.Modules.DB:SetSetting("questBarPosition", {point = point, relativePoint = relativePoint, x = x, y = y})
+    frame:SetScript("OnMouseUp", function()
+        if arg1 == "LeftButton" and this.isMoving then
+            this:StopMovingOrSizing()
+            this.isMoving = false
+            local point, _, relativePoint, x, y = this:GetPoint()
+            addon.Modules.DB:SetSetting("questBarPosition", {point = point, relativePoint = relativePoint, x = x, y = y})
+        end
     end)
     
     -- Restore position
