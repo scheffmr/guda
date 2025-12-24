@@ -489,6 +489,9 @@ local function AddSortKeys(items)
 				item.texturePattern = ""
 				item.invertedCount = 0
 				item.invertedItemID = 0
+				item.maxStackCount = 1
+				item.isStackable = false
+				item.stackCount = 1
 			else
 				-- Check if item is equippable (Armor or Weapon category)
 				local isEquippable = itemCategory == "Armor" or itemCategory == "Weapon"
@@ -576,6 +579,11 @@ local function AddSortKeys(items)
 				item.invertedCount = -(tonumber(item.data.count) or 1)
 				item.invertedItemID = -tonumber(itemID)
 
+				-- Stack info for reverse stack sorting
+				item.maxStackCount = tonumber(itemStackCount) or 1
+				item.isStackable = item.maxStackCount > 1
+				item.stackCount = tonumber(item.data.count) or 1
+
 				-- Name for alphabetical sorting
 				item.itemName = item.name or ""
 			end
@@ -585,6 +593,15 @@ end
 
 local function SortItems(items)
 	AddSortKeys(items)
+
+	-- Get reverse stack sort setting from DB
+	local reverseStackSort = false
+	if addon.Modules.DB and addon.Modules.DB.GetSetting then
+		reverseStackSort = addon.Modules.DB:GetSetting("reverseStackSort")
+		if reverseStackSort == nil then
+			reverseStackSort = false
+		end
+	end
 
 	table.sort(items, function(a, b)
 	-- 1. Priority items first (Hearthstone, etc.)
@@ -677,9 +694,18 @@ local function SortItems(items)
 		if a.invertedItemLevel ~= b.invertedItemLevel then
 			return a.invertedItemLevel < b.invertedItemLevel
 		end
-		-- Then by stack count (larger stacks first)
+		-- Then by stack count
+		-- If reverse stack sort is enabled AND both items are the same stackable item,
+		-- place smaller stacks before larger ones
 		if a.invertedCount ~= b.invertedCount then
-			return a.invertedCount < b.invertedCount
+			-- Check if both items are the same stackable item (same itemID)
+			if reverseStackSort and a.isStackable and b.isStackable and a.invertedItemID == b.invertedItemID then
+				-- Reverse: smaller stacks first (compare stackCount ascending)
+				return a.stackCount < b.stackCount
+			else
+				-- Normal: larger stacks first (use invertedCount)
+				return a.invertedCount < b.invertedCount
+			end
 		end
 		-- Final stable sort: preserve original collection order for identical items
 		-- This prevents unnecessary reshuffling when items are already sorted

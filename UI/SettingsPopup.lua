@@ -973,6 +973,46 @@ function Guda_SettingsPopup_BankViewTypeButton_OnClick()
     end
 end
 
+-- Reverse Stack Sort Checkbox OnLoad
+function Guda_SettingsPopup_ReverseStackSortCheckbox_OnLoad(self)
+    local text = getglobal(self:GetName().."Text")
+    if text then
+        text:SetText("Reverse Stack Sort")
+
+        -- Increase font size
+        local font, _, flags = text:GetFont()
+        if font then
+            text:SetFont(font, 13, flags)
+        end
+    end
+
+    -- Tooltip
+    self.tooltipText = "When enabled, smaller stacks of the same item will be sorted before larger stacks (e.g., stack of 16 before stack of 20)."
+
+    local reverseStackSort = false
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        reverseStackSort = Guda.Modules.DB:GetSetting("reverseStackSort")
+        if reverseStackSort == nil then
+            reverseStackSort = false
+        end
+    end
+
+    self:SetChecked(reverseStackSort and 1 or 0)
+end
+
+-- Reverse Stack Sort Checkbox OnClick
+function Guda_SettingsPopup_ReverseStackSortCheckbox_OnClick(self)
+    local isChecked = self:GetChecked() == 1
+
+    -- Save setting
+    if Guda and Guda.Modules and Guda.Modules.DB then
+        Guda.Modules.DB:SetSetting("reverseStackSort", isChecked)
+    end
+
+    -- Note: Sorting will use the new setting on next sort operation
+    -- No immediate UI update needed
+end
+
 -- Initialize
 function SettingsPopup:Initialize()
     Guda:Debug("Settings popup initialized")
