@@ -221,7 +221,7 @@ function SortEngine.IsMount(itemTexture)
 
 	-- Check for mount patterns in texture path
 	-- Mount textures typically contain "mount" or "ability_mount"
-	if string.find(textureLower, "mount") then
+	if string.find(textureLower, "_mount_") then
 		return true
 	end
 
