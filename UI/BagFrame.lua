@@ -415,7 +415,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
     -- Group items by category
     local categories = {}
     local categoryList = {
-        "Weapon", "Armor", "Consumable", "Food", "Drink", "Trade Goods", "Reagent", "Recipe", "Quiver", "Container", "Soul Bag", "Keyring", "Miscellaneous", "Quest", "Junk", "Class Items"
+        "Weapon", "Armor", "Consumable", "Food", "Drink", "Trade Goods", "Reagent", "Recipe", "Quiver", "Container", "Soul Bag", "Miscellaneous", "Quest", "Junk", "Class Items"
     }
     for _, cat in ipairs(categoryList) do categories[cat] = {} end
     
@@ -641,11 +641,12 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
     -- Update Y for bottom sections
     local y = currentY + rowMaxHeight
     
-    -- Special sections at bottom (Hearthstone, Mount, Tools, Empty)
+    -- Special sections at bottom (Hearthstone, Mount, Tools, Keyring, Empty)
     local bottomSections = {
         { name = "Home", items = specialItems.Hearthstone },
         { name = "Mounts", items = specialItems.Mount },
         { name = "Tools", items = specialItems.Tools },
+        { name = "Keyring", items = categories["Keyring"] or {} },
         { name = "Empty", items = {} }
     }
     
@@ -671,6 +672,12 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
             local numItems = table.getn(items)
             if sec.name == "Empty" then
                 numItems = (totalFreeSlots > 0) and 1 or 0
+            elseif sec.name == "Keyring" then
+                if showKeyring and not hiddenBags[-2] then
+                    numItems = addon.Modules.Utils:GetBagSlotCount(-2)
+                else
+                    numItems = 0
+                end
             end
             if numItems > 0 then
                 -- Sort Tools (Hearthstone/Mounts don't usually need it but good for consistency)
@@ -731,6 +738,29 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                     -- Ensure it's not actually read-only for drop behavior (it should still receive clicks/drops)
                     button.isReadOnly = false
                     button.inUse = true
+                elseif sec.name == "Keyring" then
+                    local bagID = -2
+                    local bagParent = self:GetBagParent(bagID)
+                    local bag = bagData[bagID]
+                    for slot = 1, numItems do
+                        local itemData = bag and bag.slots and bag.slots[slot] or nil
+                        local button = Guda_GetItemButton(bagParent)
+                        button:SetParent(bagParent)
+                        button:SetWidth(buttonSize)
+                        button:SetHeight(buttonSize)
+                        button:ClearAllPoints()
+                        button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + currentBottomX + (sCol * (buttonSize + spacing)), itemY - (sRow * (buttonSize + spacing)))
+                        button:Show()
+                        
+                        Guda_ItemButton_SetItem(button, bagID, slot, itemData, false, isOtherChar and charName or nil, self:PassesSearchFilter(itemData), isOtherChar)
+                        button.inUse = true
+                        
+                        sCol = sCol + 1
+                        if sCol >= blockCols then
+                            sCol = 0
+                            sRow = sRow + 1
+                        end
+                    end
                 else
                     for _, item in ipairs(items) do
                         local bagParent = self:GetBagParent(item.bagID)

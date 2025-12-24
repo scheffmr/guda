@@ -499,6 +499,8 @@
 
                                 -- Optionally tint it cyan to distinguish it
                                 SetItemButtonTextureVertexColor(this, 0.7, 1.0, 1.0)
+
+                                this:RegisterForClicks("LeftButtonUp", "RightButtonUp")
                             </OnLoad>
                             <OnClick>
                                 Guda_BagFrame_ToggleKeyring()
@@ -508,7 +510,7 @@
                                 GameTooltip:SetText("Keyring", 1.0, 1.0, 1.0)
                                 local numSlots = GetContainerNumSlots(-2) or 0
                                 GameTooltip:AddLine(string.format("%d Slots", numSlots), 0.8, 0.8, 0.8)
-                                GameTooltip:AddLine("(Click to toggle)", 0.5, 0.8, 0.5)
+                                GameTooltip:AddLine("(Right-click to toggle)", 0.5, 0.8, 0.5)
                                 GameTooltip:Show()
                                 Guda_BagFrame_HighlightBagSlots(-2)
                                 Guda_BagSlot_OnEnter(this, -2)

@@ -929,7 +929,7 @@ function Guda_ItemButton_OnEnter(self)
 	end
 
 	-- Early return for empty slots (no tooltip needed)
-	if not self.hasItem or not self.itemData then
+	if not self.hasItem then
 		return
 	end
 

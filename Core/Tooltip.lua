@@ -16,7 +16,8 @@ local function CountCurrentCharacterItems(itemID)
 	local equippedCount = 0
 
 	-- Count current character's bags in real-time
-	for bagID = 0, 4 do
+	local bagsToCount = {0, 1, 2, 3, 4, -2}
+	for _, bagID in ipairs(bagsToCount) do
 		local numSlots = GetContainerNumSlots(bagID)
 		for slot = 1, numSlots do
 			local link = GetContainerItemLink(bagID, slot)
