@@ -553,6 +553,19 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
         if numItems > 0 then
             -- Sort items in category: Subclass > Quality > Name
             table.sort(items, function(a, b)
+                -- Group Trade Goods that are meats/eggs together
+                local function isMeatEgg(d)
+                    if not d or not d.name then return false end
+                    local t = d.type or d.class or ""
+                    if t ~= "Trade Goods" then return false end
+                    local n = string.lower(d.name)
+                    return string.find(n, "meat") or string.find(n, "egg")
+                end
+                local ma = isMeatEgg(a.itemData)
+                local mb = isMeatEgg(b.itemData)
+                if ma ~= mb then
+                    return ma and not mb
+                end
                 -- Priority: consumable restore tags (eat > drink > restore > nil)
                 local pa = a.itemData and a.itemData.restoreTag or nil
                 local pb = b.itemData and b.itemData.restoreTag or nil

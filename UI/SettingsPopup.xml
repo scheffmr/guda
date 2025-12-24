@@ -395,12 +395,31 @@
                         </Scripts>
                     </CheckButton>
 
-                    <!-- View Types (Toggles for now since no Dropdown) -->
-                    <Button name="Guda_SettingsPopup_BagViewTypeButton" inherits="UIPanelButtonTemplate">
-                        <Size><AbsDimension x="130" y="25"/></Size>
+                    <!-- Reverse Stack Sort Checkbox -->
+                    <CheckButton name="Guda_SettingsPopup_ReverseStackSortCheckbox" inherits="OptionsCheckButtonTemplate">
                         <Anchors>
-                            <Anchor point="TOPLEFT" relativeTo="Guda_SettingsPopup_HideFooterCheckbox" relativePoint="BOTTOMLEFT">
-                                <Offset><AbsDimension x="-175" y="-15"/></Offset>
+                            <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="Guda_SettingsPopup_HoverBaglineCheckbox">
+                                <Offset>
+                                    <AbsDimension x="0" y="-8"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnLoad>
+                                Guda_SettingsPopup_ReverseStackSortCheckbox_OnLoad(this)
+                            </OnLoad>
+                            <OnClick>
+                                Guda_SettingsPopup_ReverseStackSortCheckbox_OnClick(this)
+                            </OnClick>
+                        </Scripts>
+                    </CheckButton>
+
+                    <!-- View Types - Same row as Reverse Stack Sort -->
+                    <Button name="Guda_SettingsPopup_BagViewTypeButton" inherits="UIPanelButtonTemplate">
+                        <Size><AbsDimension x="140" y="22"/></Size>
+                        <Anchors>
+                            <Anchor point="LEFT" relativePoint="RIGHT" relativeTo="Guda_SettingsPopup_ReverseStackSortCheckbox">
+                                <Offset><AbsDimension x="147" y="0"/></Offset>
                             </Anchor>
                         </Anchors>
                         <Scripts>
@@ -409,10 +428,10 @@
                     </Button>
 
                     <Button name="Guda_SettingsPopup_BankViewTypeButton" inherits="UIPanelButtonTemplate">
-                        <Size><AbsDimension x="130" y="25"/></Size>
+                        <Size><AbsDimension x="140" y="22"/></Size>
                         <Anchors>
                             <Anchor point="LEFT" relativeTo="Guda_SettingsPopup_BagViewTypeButton" relativePoint="RIGHT">
-                                <Offset><AbsDimension x="20" y="0"/></Offset>
+                                <Offset><AbsDimension x="10" y="0"/></Offset>
                             </Anchor>
                         </Anchors>
                         <Scripts>
