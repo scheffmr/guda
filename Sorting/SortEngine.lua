@@ -65,7 +65,8 @@ local CATEGORY_ORDER = {
 	["Key"] = 14,
 	["Miscellaneous"] = 15,
 	["Quest"] = 16,
-	["Class Items"] = 17,
+	["Junk"] = 17,
+	["Class Items"] = 18,
 }
 
 -- Subclass ordering for grouping related items
@@ -161,6 +162,31 @@ local function IsQuestItemStarter(bagID, slotID)
 				if string.find(tl, "quest starter") or string.find(tl, "this item begins a quest") or string.find(tl, "starts a quest") then
 					return true
 				end
+			end
+		end
+	end
+	return false
+end
+
+-- Check if an item has a gray title in its tooltip or link
+local function IsItemGrayTooltip(bagID, slotID, itemLink)
+	-- Check link first if provided
+	if itemLink and string.find(itemLink, "|cff9d9d9d") then
+		return true
+	end
+
+	if not bagID or not slotID then return false end
+
+	scanTooltip:ClearLines()
+	scanTooltip:SetBagItem(bagID, slotID)
+
+	local line = getglobal("Guda_SortScanTooltipTextLeft1")
+	if line then
+		local text = line:GetText()
+		if text then
+			-- Poor quality color code is |cff9d9d9d
+			if string.find(text, "|cff9d9d9d") then
+				return true
 			end
 		end
 	end
@@ -481,7 +507,11 @@ local function AddSortKeys(items)
 				item.isMount = isMount
 
 				-- Class and slot ordering
-				if isEquippable then
+				if itemRarity == 0 or IsItemGrayTooltip(item.bagID, item.slot, item.data.link) then
+					item.sortedClass = CATEGORY_ORDER["Junk"] or 99
+					item.equipSlotOrder = 999
+					item.isEquippable = false -- Treat gray gear as junk, not gear
+				elseif isEquippable then
 					item.sortedClass = 1 -- All equippable gear gets priority class
 					item.equipSlotOrder = EQUIP_SLOT_ORDER[itemSubType] or 999
 				else

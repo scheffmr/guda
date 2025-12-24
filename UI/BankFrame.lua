@@ -267,7 +267,7 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
     -- Group items by category
     local categories = {}
     local categoryList = {
-        "Weapon", "Armor", "Consumable", "Food", "Drink", "Trade Goods", "Reagent", "Recipe", "Quiver", "Container", "Soul Bag", "Miscellaneous", "Quest", "Class Items"
+        "Weapon", "Armor", "Consumable", "Food", "Drink", "Trade Goods", "Reagent", "Recipe", "Quiver", "Container", "Soul Bag", "Miscellaneous", "Quest", "Junk", "Class Items"
     }
     for _, cat in ipairs(categoryList) do categories[cat] = {} end
 
@@ -316,7 +316,11 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
         if (not isOtherChar and addon.Modules.Utils:IsQuestItemTooltip(bagID, slotID)) or itemData.class == "Quest" then
             cat = "Quest"
         
-        -- Priority 4: Food and Drink
+        -- Priority 4: Junk (Gray items)
+        elseif itemData.quality == 0 or addon.Modules.Utils:IsItemGrayTooltip(bagID, slotID, itemData.link) then
+            cat = "Junk"
+        
+        -- Priority 5: Food and Drink
         elseif itemData.class == "Consumable" then
             cat = "Consumable"
             local sub = itemData.subclass or ""

@@ -193,6 +193,32 @@ function Utils:IsQuestItemTooltip(bagID, slotID)
     return false
 end
 
+-- Check if an item has a gray title in its tooltip or link
+function Utils:IsItemGrayTooltip(bagID, slotID, itemLink)
+    -- Check link first if provided (works for other characters too)
+    if itemLink and string.find(itemLink, "|cff9d9d9d") then
+        return true
+    end
+
+    if not bagID or not slotID then return false end
+
+    local tooltip = GetScanTooltip()
+    tooltip:ClearLines()
+    tooltip:SetBagItem(bagID, slotID)
+
+    local line = getglobal("GudaBagScanTooltipTextLeft1")
+    if line then
+        local text = line:GetText()
+        if text then
+            -- Poor quality color code is |cff9d9d9d
+            if string.find(text, "|cff9d9d9d") then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 -- Get bag slot count
 function Utils:GetBagSlotCount(bagID)
     if bagID == -1 then
