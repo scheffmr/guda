@@ -48,11 +48,36 @@ function MailboxScanner:ScanMailItemRows(index)
                 count = count or 1,
                 quality = quality or 0,
                 name = name,
+                itemID = addon.Modules.Utils:ExtractItemID(itemLink),
             }
 
+            -- Fallback: If link/itemID is missing, try to recover from existing database
+            if not itemData.itemID or not itemData.link then
+                local existingMailbox = addon.Modules.DB:GetCharacterMailbox(addon.Modules.DB:GetPlayerFullName())
+                for _, oldMail in ipairs(existingMailbox) do
+                    -- Match by sender, subject and item name
+                    if oldMail.sender == sender and oldMail.subject == subject and oldMail.item and oldMail.item.name == name then
+                        if not itemData.link and oldMail.item.link then
+                            itemData.link = oldMail.item.link
+                            addon:Debug("Recovered link from database for %s", name)
+                        end
+                        if not itemData.itemID and oldMail.item.itemID then
+                            itemData.itemID = oldMail.item.itemID
+                            addon:Debug("Recovered itemID from database for %s", name)
+                        end
+                        if itemData.link and itemData.itemID then break end
+                    end
+                end
+            end
+            
+            -- If we still don't have itemID but have a link (or vice versa), fix it
+            if itemData.link and not itemData.itemID then
+                itemData.itemID = addon.Modules.Utils:ExtractItemID(itemData.link)
+            end
+
             -- If we have a link, try to get more detailed info
-            if itemLink then
-                local itemName, link, itemQuality, iLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice = addon.Modules.Utils:GetItemInfo(itemLink)
+            if itemData.link then
+                local itemName, link, itemQuality, iLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice = addon.Modules.Utils:GetItemInfo(itemData.link)
                 if itemName then
                     itemData.name = itemName
                     itemData.quality = itemQuality or itemData.quality
@@ -112,8 +137,73 @@ function MailboxScanner:SaveToDatabase()
     addon:Debug("Mailbox data saved")
 end
 
+-- Handle outgoing mail
+function MailboxScanner:OnSendMail(recipient, subject, body)
+    if not recipient or recipient == "" then return end
+    
+    -- In WoW 1.12.1, SendMail(recipient, subject, body) is the signature.
+    -- To get the attached item, we use GetSendMailItem().
+    -- GetSendMailItem() returns: name, texture, count, quality
+    local name, texture, count, quality = GetSendMailItem()
+    local moneyAmount = GetSendMailMoney()
+    
+    local itemData = nil
+    if name then
+        local _, link = GetItemInfo(name)
+        itemData = {
+            name = name,
+            texture = texture or "Interface\\Icons\\INV_Misc_Bag_08",
+            count = count or 1,
+            quality = quality or 0,
+            link = link,
+            itemID = addon.Modules.Utils:ExtractItemID(link),
+        }
+        
+        -- Try to get more info if it's in cache
+        local itemName, retLink, itemQuality, iLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice = addon.Modules.Utils:GetItemInfo(name)
+        if itemName then
+            itemData.link = retLink or itemData.link
+            itemData.itemID = addon.Modules.Utils:ExtractItemID(itemData.link) or itemData.itemID
+            itemData.quality = itemQuality or itemData.quality
+            itemData.iLevel = iLevel
+            itemData.type = itemType
+            itemData.class = itemCategory
+            itemData.subclass = itemSubType
+            itemData.equipSlot = itemEquipLoc
+            if itemTexture then itemData.texture = itemTexture end
+        end
+
+        -- Double check itemID
+        if not itemData.itemID and itemData.link then
+            itemData.itemID = addon.Modules.Utils:ExtractItemID(itemData.link)
+        end
+    end
+
+    if itemData or moneyAmount > 0 then
+        local mailRow = {
+            sender = UnitName("player"),
+            subject = (subject and subject ~= "") and subject or "No Subject",
+            money = moneyAmount,
+            CODAmount = 0,
+            daysLeft = 30, -- Outgoing mail typically has 30 days
+            hasItem = itemData ~= nil,
+            item = itemData,
+            wasRead = false,
+        }
+        
+        addon.Modules.DB:AddMailToCharacter(recipient, nil, mailRow)
+    end
+end
+
 -- Initialize mailbox scanner
 function MailboxScanner:Initialize()
+    -- Hook SendMail to capture outgoing mail to alts
+    local originalSendMail = SendMail
+    SendMail = function(recipient, subject, body)
+        MailboxScanner:OnSendMail(recipient, subject, body)
+        return originalSendMail(recipient, subject, body)
+    end
+
     -- Mailbox opened
     addon.Modules.Events:OnMailShow(function()
         mailboxOpen = true
@@ -155,7 +245,7 @@ function MailboxScanner:Initialize()
     -- Mailbox closed
     addon.Modules.Events:OnMailClosed(function()
         -- Final save on close
-        self:SaveToDatabase()
+        MailboxScanner:SaveToDatabase()
         mailboxOpen = false
         addon:Debug("Mailbox closed")
     end, "MailboxScanner")

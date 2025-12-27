@@ -982,13 +982,19 @@ function Guda_ItemButton_OnEnter(self)
     -- Mailbox tooltip handling
     if self.isMail then
         local currentPlayerName = addon.Modules.DB:GetPlayerFullName()
-        if (not self.otherChar or self.otherChar == currentPlayerName) and self.mailIndex then
-            -- Live mailbox for current character
+        local isMailboxOpen = addon.Modules.MailboxScanner and addon.Modules.MailboxScanner:IsMailboxOpen()
+        
+        if (not self.otherChar or self.otherChar == currentPlayerName) and self.mailIndex and isMailboxOpen then
+            -- Live mailbox for current character (only when mailbox is actually open)
             GameTooltip:SetInboxItem(self.mailIndex, self.mailItemIndex or 1)
-        elseif self.itemData and self.itemData.link then
-            -- Read-only / other character mailbox
-            GameTooltip.GudaViewedCharacter = self.otherChar
-            GameTooltip:SetHyperlink(self.itemData.link)
+        elseif self.itemData and (self.itemData.link or self.itemData.itemID) then
+            -- Read-only / other character mailbox OR current character mailbox when closed
+            GameTooltip.GudaViewedCharacter = self.otherChar or currentPlayerName
+            if self.itemData.link then
+                GameTooltip:SetHyperlink(self.itemData.link)
+            else
+                GameTooltip:SetHyperlink("item:" .. self.itemData.itemID .. ":0:0:0")
+            end
         elseif self.itemData and self.itemData.name then
             -- Money or generic mail
             GameTooltip:AddLine(self.itemData.name, 1, 1, 1)
