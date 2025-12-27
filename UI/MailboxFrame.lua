@@ -282,20 +282,37 @@ function Guda_MailboxFrame_OnSearchTextChanged()
 end
 
 -- Show character selection menu
-function Guda_MailboxFrame_ShowCharacterMenu()
+local function Guda_MailboxCharacterMenu_Initialize()
     local characters = addon.Modules.DB:GetAllCharacters(true, true)
-    local menu = {}
-    
+    local info
+
     for i, char in ipairs(characters) do
         local charFullName = char.fullName
-        table.insert(menu, {
-            text = char.name,
-            func = function() MailboxFrame:ShowCharacter(charFullName) end,
-            checked = (currentViewChar == char.fullName or (not currentViewChar and char.fullName == addon.Modules.DB:GetPlayerFullName()))
-        })
+        local charClassToken = char.classToken
+        
+        -- Get class color
+        local classColor = charClassToken and RAID_CLASS_COLORS[charClassToken]
+        local r, g, b = 1, 1, 1
+        if classColor then
+            r, g, b = classColor.r, classColor.g, classColor.b
+        end
+
+        -- Create colored name
+        local coloredName = addon.Modules.Utils:ColorText(char.name, r, g, b)
+
+        info = {}
+        info.text = coloredName
+        info.func = function() MailboxFrame:ShowCharacter(charFullName) end
+        info.checked = (currentViewChar == char.fullName or (not currentViewChar and char.fullName == addon.Modules.DB:GetPlayerFullName()))
+        UIDropDownMenu_AddButton(info)
     end
-    
-    -- EasyMenu is available in 1.12.1
-    local menuFrame = CreateFrame("Frame", "Guda_MailboxCharacterMenu", UIParent, "UIDropDownMenuTemplate")
-    EasyMenu(menu, menuFrame, "cursor", 0, 0, "MENU")
+end
+
+function Guda_MailboxFrame_ShowCharacterMenu()
+    local menuFrame = getglobal("Guda_MailboxCharacterMenu")
+    if not menuFrame then
+        menuFrame = CreateFrame("Frame", "Guda_MailboxCharacterMenu", UIParent, "UIDropDownMenuTemplate")
+    end
+    UIDropDownMenu_Initialize(menuFrame, Guda_MailboxCharacterMenu_Initialize, "MENU")
+    ToggleDropDownMenu(1, nil, menuFrame, "cursor", 0, 0)
 end

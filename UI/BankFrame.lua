@@ -7,6 +7,9 @@ local BankFrame = {}
 addon.Modules.BankFrame = BankFrame
 
 local currentViewChar = nil
+function BankFrame:GetCurrentViewChar()
+    return currentViewChar
+end
 local searchText = ""
 local isReadOnlyMode = false  -- Track if viewing saved bank (read-only) or live bank (interactive)
 local hiddenBankBags = {} -- Track which bank bags are hidden (bagID -> true/false)
@@ -1829,69 +1832,16 @@ function Guda_BankFrame_ClearBagButtonHighlight()
 end
 
 -- Bank character dropdown (similar to BagFrame's bank dropdown)
-local bankCharDropdown
+local function Guda_BankCharacterMenu_Initialize()
+    local characters = addon.Modules.DB:GetAllCharacters(false, true)
+    local info
+    local currentPlayerFullName = addon.Modules.DB:GetPlayerFullName()
+    local currentViewChar = addon.Modules.BankFrame:GetCurrentViewChar()
 
-function Guda_BankFrame_ToggleBankDropdown(button)
-    if bankCharDropdown and bankCharDropdown:IsShown() then
-        bankCharDropdown:Hide()
-        return
-    end
-
-    if not bankCharDropdown then
-        -- Create dropdown frame
-        bankCharDropdown = CreateFrame("Frame", "Guda_BankCharDropdown", UIParent)
-        bankCharDropdown:SetFrameStrata("DIALOG")
-        bankCharDropdown:SetWidth(200)
-        bankCharDropdown:SetBackdrop({
-            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-            tile = true,
-            tileSize = 16,
-            edgeSize = 16,
-            insets = { left = 4, right = 4, top = 4, bottom = 4 }
-        })
-        bankCharDropdown:SetBackdropColor(0, 0, 0, 0.95)
-        bankCharDropdown:EnableMouse(true)
-        bankCharDropdown:Hide()
-
-        bankCharDropdown.buttons = {}
-    end
-
-    -- Position dropdown below the button
-    bankCharDropdown:ClearAllPoints()
-    bankCharDropdown:SetPoint("TOPLEFT", button, "BOTTOMLEFT", 0, -2)
-
-    -- Clear existing buttons
-    for _, btn in ipairs(bankCharDropdown.buttons) do
-        btn:Hide()
-    end
-    bankCharDropdown.buttons = {}
-
-    -- Get all characters on current realm
-    local chars = addon.Modules.DB:GetAllCharacters(false, true)
-
-    local yOffset = -8
-
-    -- Add character buttons
-    for _, char in ipairs(chars) do
-        -- Capture variables in local scope for closure
+    for i, char in ipairs(characters) do
         local charFullName = char.fullName
-        local charName = char.name
-        local charMoney = char.money or 0
         local charClassToken = char.classToken
-
-        local charButton = CreateFrame("Button", nil, bankCharDropdown)
-        charButton:SetWidth(188)
-        charButton:SetHeight(20)
-        charButton:SetPoint("TOP", bankCharDropdown, "TOP", 0, yOffset)
-
-        -- Button background on hover
-        local charBg = charButton:CreateTexture(nil, "BACKGROUND")
-        charBg:SetAllPoints()
-        charBg:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
-        charBg:SetBlendMode("ADD")
-        charBg:SetAlpha(0)
-
+        
         -- Get class color
         local classColor = charClassToken and RAID_CLASS_COLORS[charClassToken]
         local r, g, b = 1, 1, 1
@@ -1899,44 +1849,30 @@ function Guda_BankFrame_ToggleBankDropdown(button)
             r, g, b = classColor.r, classColor.g, classColor.b
         end
 
-        -- Button text
-        local charText = charButton:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-        charText:SetPoint("LEFT", charButton, "LEFT", 8, 0)
-        charText:SetText(charName)
-        charText:SetTextColor(r, g, b)
+        -- Create colored name
+        local coloredName = addon.Modules.Utils:ColorText(char.name, r, g, b)
 
-        -- Money text
-        local moneyText = charButton:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-        moneyText:SetPoint("RIGHT", charButton, "RIGHT", -8, 0)
-        moneyText:SetText(addon.Modules.Utils:FormatMoney(charMoney))
-        moneyText:SetTextColor(0.7, 0.7, 0.7)
-
-        -- Button scripts
-        charButton:SetScript("OnEnter", function()
-            charBg:SetAlpha(0.3)
-        end)
-        charButton:SetScript("OnLeave", function()
-            charBg:SetAlpha(0)
-        end)
-        charButton:SetScript("OnClick", function()
-            if charFullName then
-                -- Show bank for this character using the BankFrame module
-                addon.Modules.BankFrame:ShowCharacter(charFullName)
-                bankCharDropdown:Hide()
+        info = {}
+        info.text = coloredName
+        info.func = function()
+            if charFullName == currentPlayerFullName then
+                addon.Modules.BankFrame:ShowCurrentCharacter()
             else
-                addon:Print("Error: Character fullName is nil")
+                addon.Modules.BankFrame:ShowCharacter(charFullName)
             end
-        end)
-
-        table.insert(bankCharDropdown.buttons, charButton)
-        yOffset = yOffset - 20
+        end
+        info.checked = (currentViewChar == charFullName or (not currentViewChar and charFullName == currentPlayerFullName))
+        UIDropDownMenu_AddButton(info)
     end
+end
 
-    -- Set dropdown height based on content
-    bankCharDropdown:SetHeight(math.abs(yOffset) + 8)
-
-    -- Show dropdown
-    bankCharDropdown:Show()
+function Guda_BankFrame_ToggleBankDropdown(button)
+    local menuFrame = getglobal("Guda_BankCharacterMenu")
+    if not menuFrame then
+        menuFrame = CreateFrame("Frame", "Guda_BankCharacterMenu", UIParent, "UIDropDownMenuTemplate")
+    end
+    UIDropDownMenu_Initialize(menuFrame, Guda_BankCharacterMenu_Initialize, "MENU")
+    ToggleDropDownMenu(1, nil, menuFrame, "cursor", 0, 0)
 end
 
 -- Drag handlers for bank bag slots
