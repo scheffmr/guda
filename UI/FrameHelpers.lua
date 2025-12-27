@@ -130,3 +130,80 @@ function Guda_PassesSearchFilter(itemData, searchText)
     return string.find(itemName, string.lower(searchText), 1, true) ~= nil
 end
 
+-- Generic ResizeFrame for Bag/Bank frames
+function Guda_ResizeFrame(frameName, containerName, currentRow, currentCol, columns, overrideHeight)
+    local buttonSize = addon.Modules.DB:GetSetting("iconSize") or addon.Constants.BUTTON_SIZE
+    local spacing = addon.Modules.DB:GetSetting("iconSpacing") or addon.Constants.BUTTON_SPACING
+
+    local totalRows = (currentRow or 0) + 1
+    if totalRows < 1 then totalRows = 1 end
+
+    local containerWidth = (columns * (buttonSize + spacing)) + 20
+    local containerHeight = overrideHeight or ((totalRows * (buttonSize + spacing)) + 20)
+    local frameWidth = containerWidth + 20
+
+    local showSearchBar = addon.Modules.DB:GetSetting("showSearchBar")
+    if showSearchBar == nil then showSearchBar = true end
+
+    local titleHeight = 40
+    local searchBarHeight = 30
+    local footerHeight = 45
+    local frameHeight
+
+    local hideFooter = addon.Modules.DB:GetSetting("hideFooter")
+    if hideFooter then
+        footerHeight = 10
+        frameHeight = containerHeight + titleHeight + (showSearchBar and searchBarHeight or 0) + footerHeight
+    elseif showSearchBar then
+        frameHeight = containerHeight + titleHeight + searchBarHeight + footerHeight
+    else
+        frameHeight = containerHeight + titleHeight + footerHeight
+    end
+
+    if containerWidth < 200 then
+        containerWidth = 200
+        frameWidth = 220
+    end
+    if containerHeight < 150 then containerHeight = 150 end
+    if frameHeight < 250 then frameHeight = 250 end
+
+    if containerWidth > 1250 then containerWidth = 1250; frameWidth = 1270 end
+    if containerHeight > 1000 then containerHeight = 1000 end
+    if frameHeight > 1200 then frameHeight = 1200 end
+
+    local frame = getglobal(frameName)
+    local itemContainer = getglobal(containerName)
+
+    if frame then
+        frame:SetWidth(frameWidth)
+        frame:SetHeight(frameHeight)
+        frame:ClearAllPoints()
+        -- Try to preserve saved position if present (saved only for Bag frame)
+        if addon and addon.Modules and addon.Modules.DB then
+            local settingName = (frameName == "Guda_BagFrame") and "bagFramePosition" or nil
+            if settingName then
+                local pos = addon.Modules.DB:GetSetting(settingName)
+                if pos and pos.point == "BOTTOMRIGHT" and pos.x and pos.y then
+                    frame:SetPoint("BOTTOMRIGHT", "UIParent", "BOTTOMRIGHT", pos.x, pos.y)
+                else
+                    frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -50, 100)
+                end
+            else
+                frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -50, 100)
+            end
+        else
+            frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -50, 100)
+        end
+    end
+
+    if itemContainer then
+        itemContainer:SetWidth(containerWidth)
+        itemContainer:SetHeight(containerHeight)
+    end
+
+    -- Resize search bar and toolbar to match container width
+    local searchBar = getglobal(frameName .. "_SearchBar")
+    if searchBar then searchBar:SetWidth(containerWidth) end
+    local toolbar = getglobal(frameName .. "_Toolbar")
+    if toolbar then toolbar:SetWidth(containerWidth) end
+end
