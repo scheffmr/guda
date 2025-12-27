@@ -197,6 +197,27 @@ function MailboxFrame:DisplayItems(items, charFullName, totalMails)
         
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", container, "TOPLEFT", 0, -(rowIndex - 1) * 55)
+
+        -- Row Money Frame
+        local moneyFrame = getglobal(row:GetName() .. "_MoneyFrame")
+        if moneyFrame then
+            -- Ensure row money frame doesn't auto-update to character money
+            moneyFrame.moneyType = "STATIC"
+            moneyFrame:UnregisterAllEvents()
+            moneyFrame:SetScript("OnShow", nil) -- Disable Blizzard's auto-update OnShow
+            moneyFrame:SetScript("OnEvent", nil)
+            
+            -- Restore right alignment for the money frame to avoid overlap with icon
+            moneyFrame:ClearAllPoints()
+            moneyFrame:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -10, 8)
+        end
+
+        if (mail.money or 0) > 0 then
+            moneyFrame:Show()
+            MoneyFrame_Update(moneyFrame:GetName(), mail.money)
+        else
+            if moneyFrame then moneyFrame:Hide() end
+        end
         
         -- Fill row data
         getglobal(row:GetName() .. "_Sender"):SetText(mail.sender or "Unknown")
@@ -257,20 +278,6 @@ function MailboxFrame:DisplayItems(items, charFullName, totalMails)
             if itemButton.qualityBorder then itemButton.qualityBorder:Hide() end
         end
 
-        -- Row Money Frame
-        local moneyFrame = getglobal(row:GetName() .. "_MoneyFrame")
-        if moneyFrame then
-            -- Restore right alignment for the money frame to avoid overlap with icon
-            moneyFrame:ClearAllPoints()
-            moneyFrame:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -10, 8)
-        end
-        if (mail.money or 0) > 0 then
-            MoneyFrame_Update(moneyFrame:GetName(), mail.money)
-            moneyFrame:Show()
-        else
-            moneyFrame:Hide()
-        end
-        
         row:Show()
         rowIndex = rowIndex + 1
     end
