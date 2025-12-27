@@ -700,15 +700,6 @@
                 <Anchors>
                     <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_SearchBar" x="0" y="-5"/>
                 </Anchors>
-                <Backdrop bgFile="Interface\Tooltips\UI-Tooltip-Background" tile="true">
-                    <BackgroundInsets>
-                        <AbsInset left="0" right="0" top="0" bottom="0"/>
-                    </BackgroundInsets>
-                    <TileSize>
-                        <AbsValue val="16"/>
-                    </TileSize>
-                    <Color r="0" g="0" b="0" a="0.5"/>
-                </Backdrop>
                 <!-- Note: with enableMouse=false, OnMouseDown/OnReceiveDrag here would not fire; 
                      child item buttons will handle mouse events directly. -->
             </Frame>

@@ -619,15 +619,6 @@
                 <Anchors>
                     <Anchor point="TOP" relativePoint="BOTTOM" relativeTo="$parent_SearchBar" x="0" y="-5"/>
                 </Anchors>
-                <Backdrop bgFile="Interface\Tooltips\UI-Tooltip-Background" tile="true">
-                    <BackgroundInsets>
-                        <AbsInset left="0" right="0" top="0" bottom="10"/>
-                    </BackgroundInsets>
-                    <TileSize>
-                        <AbsValue val="16"/>
-                    </TileSize>
-                    <Color r="0" g="0" b="0" a="0.5"/>
-                </Backdrop>
                 <Scripts>
                     <OnMouseDown>
                         -- Clear search focus when clicking in item area
