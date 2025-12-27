@@ -19,20 +19,25 @@ function MailboxScanner:ScanMailbox()
     local numItems = GetInboxNumItems()
 
     for i = 1, numItems do
-        mailboxData[i] = self:ScanMailItem(i)
+        local mailRows = self:ScanMailItemRows(i)
+        for _, row in ipairs(mailRows) do
+            table.insert(mailboxData, row)
+        end
     end
 
     return mailboxData
 end
 
--- Scan a single mail item
-function MailboxScanner:ScanMailItem(index)
+-- Scan a single mail into one or more rows (flattened)
+function MailboxScanner:ScanMailItemRows(index)
     -- GetInboxHeaderInfo(index) returns: packageIcon, stationeryIcon, sender, subject, money, CODAmount, daysLeft, hasItem, wasRead, wasReturned, textCreated, canReply, isGM
     local packageIcon, stationeryIcon, sender, subject, money, CODAmount, daysLeft, hasItem, wasRead, wasReturned, textCreated, canReply, isGM = GetInboxHeaderInfo(index)
 
-    local items = {}
+    local rows = {}
+    
     if hasItem then
         -- Turtle WoW supports up to 12 attachments per mail
+
             -- GetInboxItem(index, itemIndex) returns: name, texture, count, quality, canUse
             local name, texture, count, quality, canUse = GetInboxItem(index, itemIndex)
             if name then
@@ -60,22 +65,41 @@ function MailboxScanner:ScanMailItem(index)
                         if itemTexture then itemData.texture = itemTexture end
                     end
                 end
-                table.insert(items, itemData)
+
+                table.insert(rows, {
+                    sender = sender,
+                    subject = subject,
+                    money = (itemIndex == 1) and money or 0, -- Attach money only to the first row of this mail
+                    CODAmount = (itemIndex == 1) and CODAmount or 0,
+                    daysLeft = daysLeft,
+                    hasItem = true,
+                    item = itemData,
+                    mailIndex = index,
+                    itemIndex = itemIndex,
+                    wasRead = wasRead,
+                    packageIcon = packageIcon,
+                })
         end
     end
 
-    return {
-        sender = sender,
-        subject = subject,
-        money = money,
-        CODAmount = CODAmount,
-        daysLeft = daysLeft,
-        hasItem = (table.getn(items) > 0),
-        item = items[1],
-        items = items,
-        wasRead = wasRead,
-        packageIcon = packageIcon,
-    }
+    -- If no items found but there is money or it's just a letter
+    if table.getn(rows) == 0 then
+        table.insert(rows, {
+            sender = sender,
+            subject = subject,
+            money = money,
+            CODAmount = CODAmount,
+            daysLeft = daysLeft,
+            hasItem = false,
+            item = nil,
+            mailIndex = index,
+            itemIndex = 1,
+            wasRead = wasRead,
+            packageIcon = packageIcon,
+        })
+    end
+
+    return rows
 end
 
 -- Save current mailbox to database
@@ -114,6 +138,14 @@ function MailboxScanner:Initialize()
     addon.Modules.Events:Register("GET_ITEM_INFO_RECEIVED", function()
         if mailboxOpen then
             addon:Debug("GET_ITEM_INFO_RECEIVED: Refreshing mailbox")
+            MailboxScanner:SaveToDatabase()
+        end
+    end, "MailboxScanner")
+
+    -- Register for MAIL_INBOX_UPDATE to detect when mail content changes
+    addon.Modules.Events:Register("MAIL_INBOX_UPDATE", function()
+        if mailboxOpen then
+            addon:Debug("MAIL_INBOX_UPDATE: Refreshing mailbox")
             MailboxScanner:SaveToDatabase()
         end
     end, "MailboxScanner")

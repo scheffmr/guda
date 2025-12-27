@@ -123,38 +123,13 @@ function MailboxFrame:Update()
                 matchesSearch = true
             elseif mail.subject and string.find(string.lower(mail.subject), searchText) then
                 matchesSearch = true
-            elseif mail.items then
-                for _, item in ipairs(mail.items) do
-                    if item.name and string.find(string.lower(item.name), searchText) then
-                        matchesSearch = true
-                        break
-                    end
-                end
             elseif mail.item and mail.item.name and string.find(string.lower(mail.item.name), searchText) then
                 matchesSearch = true
             end
         end
 
         if matchesSearch then
-            -- Flatten mails with multiple items so they all show up in the grid
-            if mail.items and table.getn(mail.items) > 1 then
-                for itemIndex, item in ipairs(mail.items) do
-                    local mailCopy = {}
-                    for k, v in pairs(mail) do mailCopy[k] = v end
-                    mailCopy.item = item
-                    mailCopy.mailIndex = i
-                    mailCopy.itemIndex = itemIndex
-                    -- Clear items list in copy to avoid recursive flattening
-                    mailCopy.items = nil 
-                    table.insert(filteredItems, mailCopy)
-                end
-            else
-                local mailCopy = {}
-                for k, v in pairs(mail) do mailCopy[k] = v end
-                mailCopy.mailIndex = i
-                mailCopy.itemIndex = 1
-                table.insert(filteredItems, mailCopy)
-            end
+            table.insert(filteredItems, mail)
         end
     end
 
