@@ -227,7 +227,7 @@
                     <OnLoad>
                         local icon = getglobal(this:GetName().."_Icon")
                         if icon then
-                            icon:SetTexture("Interface\\AddOns\\Guda\\Assets\\All_Characters")
+                            icon:SetTexture("Interface\\AddOns\\Guda\\Assets\\Envelope")
                         end
                     </OnLoad>
                     <OnClick>
