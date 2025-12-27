@@ -112,17 +112,28 @@ local function CountCurrentCharacterItems(itemID)
 			for _, mail in ipairs(charData.mailbox) do
 				if mail.items then
 					for _, item in ipairs(mail.items) do
-						if item.link then
-							local slotItemID = GetItemIDFromLink(item.link)
-							if slotItemID == itemID then
+						local slotItemID = item.link and GetItemIDFromLink(item.link)
+						if slotItemID == itemID then
+							mailCount = mailCount + (item.count or 1)
+						elseif not slotItemID and item.name then
+							-- Fallback to name matching if link is missing
+							local targetName = GetItemInfo(itemID)
+							if targetName == item.name then
 								mailCount = mailCount + (item.count or 1)
 							end
 						end
 					end
-				elseif mail.item and mail.item.link then -- Fallback for single item data structure
-					local slotItemID = GetItemIDFromLink(mail.item.link)
+				elseif mail.item then -- Fallback for single item data structure
+					local item = mail.item
+					local slotItemID = item.link and GetItemIDFromLink(item.link)
 					if slotItemID == itemID then
-						mailCount = mailCount + (mail.item.count or 1)
+						mailCount = mailCount + (item.count or 1)
+					elseif not slotItemID and item.name then
+						-- Fallback to name matching if link is missing
+						local targetName = GetItemInfo(itemID)
+						if targetName == item.name then
+							mailCount = mailCount + (item.count or 1)
+						end
 					end
 				end
 			end
@@ -193,17 +204,28 @@ local function CountItemsForCharacter(itemID, characterData, isCurrentChar)
 		for _, mail in ipairs(characterData.mailbox) do
 			if mail.items then
 				for _, item in ipairs(mail.items) do
-					if item.link then
-						local slotItemID = GetItemIDFromLink(item.link)
-						if slotItemID == itemID then
+					local slotItemID = item.link and GetItemIDFromLink(item.link)
+					if slotItemID == itemID then
+						mailCount = mailCount + (item.count or 1)
+					elseif not slotItemID and item.name then
+						-- Fallback to name matching if link is missing
+						local targetName = GetItemInfo(itemID)
+						if targetName == item.name then
 							mailCount = mailCount + (item.count or 1)
 						end
 					end
 				end
-			elseif mail.item and mail.item.link then -- Fallback for single item data structure
-				local slotItemID = GetItemIDFromLink(mail.item.link)
+			elseif mail.item then -- Fallback for single item data structure
+				local item = mail.item
+				local slotItemID = item.link and GetItemIDFromLink(item.link)
 				if slotItemID == itemID then
-					mailCount = mailCount + (mail.item.count or 1)
+					mailCount = mailCount + (item.count or 1)
+				elseif not slotItemID and item.name then
+					-- Fallback to name matching if link is missing
+					local targetName = GetItemInfo(itemID)
+					if targetName == item.name then
+						mailCount = mailCount + (item.count or 1)
+					end
 				end
 			end
 		end

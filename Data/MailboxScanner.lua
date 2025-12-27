@@ -36,49 +36,48 @@ function MailboxScanner:ScanMailItemRows(index)
     local rows = {}
     
     if hasItem then
-        -- Turtle WoW supports up to 12 attachments per mail
+        local itemIndex = 1
+        -- GetInboxItem(index, itemIndex) returns: name, texture, count, quality, canUse
+        local name, texture, count, quality, canUse = GetInboxItem(index, itemIndex)
+        if name then
+            local itemLink = addon.Modules.Utils:GetInboxItemLink(index, itemIndex)
 
-            -- GetInboxItem(index, itemIndex) returns: name, texture, count, quality, canUse
-            local name, texture, count, quality, canUse = GetInboxItem(index, itemIndex)
-            if name then
-                local itemLink = addon.Modules.Utils:GetInboxItemLink(index, itemIndex)
+            local itemData = {
+                link = itemLink,
+                texture = texture or "Interface\\Icons\\INV_Misc_Bag_08",
+                count = count or 1,
+                quality = quality or 0,
+                name = name,
+            }
 
-                local itemData = {
-                    link = itemLink,
-                    texture = texture or "Interface\\Icons\\INV_Misc_Bag_08",
-                    count = count or 1,
-                    quality = quality or 0,
-                    name = name,
-                }
-
-                -- If we have a link, try to get more detailed info
-                if itemLink then
-                    local itemName, link, itemQuality, iLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice = addon.Modules.Utils:GetItemInfo(itemLink)
-                    if itemName then
-                        itemData.name = itemName
-                        itemData.quality = itemQuality or itemData.quality
-                        itemData.iLevel = iLevel
-                        itemData.type = itemType
-                        itemData.class = itemCategory
-                        itemData.subclass = itemSubType
-                        itemData.equipSlot = itemEquipLoc
-                        if itemTexture then itemData.texture = itemTexture end
-                    end
+            -- If we have a link, try to get more detailed info
+            if itemLink then
+                local itemName, link, itemQuality, iLevel, itemCategory, itemType, itemStackCount, itemSubType, itemTexture, itemEquipLoc, itemSellPrice = addon.Modules.Utils:GetItemInfo(itemLink)
+                if itemName then
+                    itemData.name = itemName
+                    itemData.quality = itemQuality or itemData.quality
+                    itemData.iLevel = iLevel
+                    itemData.type = itemType
+                    itemData.class = itemCategory
+                    itemData.subclass = itemSubType
+                    itemData.equipSlot = itemEquipLoc
+                    if itemTexture then itemData.texture = itemTexture end
                 end
+            end
 
-                table.insert(rows, {
-                    sender = sender,
-                    subject = subject,
-                    money = (itemIndex == 1) and money or 0, -- Attach money only to the first row of this mail
-                    CODAmount = (itemIndex == 1) and CODAmount or 0,
-                    daysLeft = daysLeft,
-                    hasItem = true,
-                    item = itemData,
-                    mailIndex = index,
-                    itemIndex = itemIndex,
-                    wasRead = wasRead,
-                    packageIcon = packageIcon,
-                })
+            table.insert(rows, {
+                sender = sender,
+                subject = subject,
+                money = (itemIndex == 1) and money or 0, -- Attach money only to the first row of this mail
+                CODAmount = (itemIndex == 1) and CODAmount or 0,
+                daysLeft = daysLeft,
+                hasItem = true,
+                item = itemData,
+                mailIndex = index,
+                itemIndex = itemIndex,
+                wasRead = wasRead,
+                packageIcon = packageIcon,
+            })
         end
     end
 

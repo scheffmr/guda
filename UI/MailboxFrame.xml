@@ -150,12 +150,12 @@
                 <Frames>
                     <EditBox name="$parent_SearchBox" autoFocus="false" inherits="InputBoxTemplate">
                         <Size>
-                            <AbsDimension x="240" y="20"/>
+                            <AbsDimension x="235" y="20"/>
                         </Size>
                         <Anchors>
                             <Anchor point="LEFT">
                                 <Offset>
-                                    <AbsDimension x="5" y="0"/>
+                                    <AbsDimension x="10" y="0"/>
                                 </Offset>
                             </Anchor>
                         </Anchors>
