@@ -387,109 +387,18 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
     local perRow = addon.Modules.DB:GetSetting("bagColumns") or 10
     local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
 
-    -- Group items by category
-    local categories = {}
-    local categoryList = {
-        "Weapon", "Armor", "BoE", "Consumable", "Food", "Drink", "Trade Goods", "Reagent", "Recipe", "Quiver", "Container", "Soul Bag", "Miscellaneous", "Quest", "Junk", "Class Items", "Keyring"
-    }
-    for _, cat in ipairs(categoryList) do categories[cat] = {} end
-    
-    local specialItems = {
-        Hearthstone = {},
-        Mount = {},
-        Tools = {}
-    }
+    -- Use centralized category initialization
+    local categories, specialItems = Guda_InitCategories()
+    local categoryList = Guda_CategoryList
 
+    -- Categorize all items using centralized function
     for _, bagID in ipairs(addon.Constants.BAGS) do
         if not hiddenBags[bagID] then
             local bag = bagData[bagID]
             if bag and bag.slots then
                 for slotID, itemData in pairs(bag.slots) do
                     if itemData then
-                        local cat = "Miscellaneous"
-                        local itemName = itemData.name or ""
-						local itemType = itemData.type or ""
-
-                        -- Detect consumable restore/eat/drink tag for current character only
-                        if not isOtherChar and addon.Modules.Utils and addon.Modules.Utils.GetConsumableRestoreTag then
-                            local tag = addon.Modules.Utils:GetConsumableRestoreTag(bagID, slotID)
-                            if tag then
-                                itemData.restoreTag = tag
-                            end
-                        end
-
-                        -- Priority 1: Special items (Hearthstone, Mounts, Tools)
-                        if string.find(itemName, "Hearthstone") then
-                            table.insert(specialItems.Hearthstone, {bagID = bagID, slotID = slotID, itemData = itemData})
-                        elseif addon.Modules.SortEngine and addon.Modules.SortEngine.IsMount and addon.Modules.SortEngine.IsMount(itemData.texture) then
-                             table.insert(specialItems.Mount, {bagID = bagID, slotID = slotID, itemData = itemData})
-                        elseif string.find(itemName, "Runed .* Rod") or
-                           itemType == "Fishing Pole" or
-                           string.find(itemName, "Mining Pick") or
-                           string.find(itemName, "Blacksmith Hammer") or
-                           itemName == "Arclight Spanner" or
-                           itemName == "Gyromatic Micro-Adjustor" or
-                           itemName == "Philosopher's Stone" or
-                           string.find(itemName, "Skinning Knife") or
-                           itemName == "Blood Scythe" then
-                            table.insert(specialItems.Tools, {bagID = bagID, slotID = slotID, itemData = itemData})
-                        
-                        -- Priority 2: Class Items (Soul Shards, Arrows, Bullets)
-                        elseif addon.Modules.Utils:IsSoulShard(itemData.link) or 
-                               itemData.class == "Projectile" or 
-                               itemData.subclass == "Arrow" or 
-                               itemData.subclass == "Bullet" then
-                            table.insert(categories["Class Items"], {bagID = bagID, slotID = slotID, itemData = itemData})
-
-                        -- Priority 3: Quest Items
-                        elseif (not isOtherChar and addon.Modules.Utils:IsQuestItemTooltip(bagID, slotID)) or itemData.class == "Quest" then
-                            table.insert(categories["Quest"], {bagID = bagID, slotID = slotID, itemData = itemData})
-                        
-                        -- Priority 4: Junk (Gray items)
-                        elseif itemData.quality == 0 or addon.Modules.Utils:IsItemGrayTooltip(bagID, slotID, itemData.link) then
-                            table.insert(categories["Junk"], {bagID = bagID, slotID = slotID, itemData = itemData})
-
-                        -- Priority 5: Food and Drink
-                        elseif itemData.class == "Consumable" then
-                            cat = "Consumable"
-                            local sub = itemData.subclass or ""
-                            if sub == "Food & Drink" or string.find(sub, "Food") or string.find(sub, "Drink") then
-                                if string.find(sub, "Drink") then
-                                    cat = "Drink"
-                                else
-                                    cat = "Food"
-                                end
-                            end
-                            table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
-
-                        -- Priority 6: BoE Equipment (Armor/Weapons that bind when equipped)
-                        elseif (itemData.class == "Weapon" or itemData.class == "Armor") and
-                               not isOtherChar then
-                            -- Check for BoE
-                            local isBoE = addon.Modules.Utils:IsBindOnEquip(bagID, slotID)
-                            if isBoE then
-                                table.insert(categories["BoE"], {bagID = bagID, slotID = slotID, itemData = itemData})
-                            else
-                                -- Not BoE, put in regular category
-                                table.insert(categories[itemData.class], {bagID = bagID, slotID = slotID, itemData = itemData})
-                            end
-
-                        -- Priority 7: Equipment (other equippable items like trinkets, rings, or viewing other character's gear)
-                        elseif itemData.equipSlot and itemData.equipSlot ~= "" then
-                            -- For other characters, can't scan tooltip so just categorize normally
-                            if itemData.class == "Weapon" or itemData.class == "Armor" then
-                                cat = itemData.class
-                            else
-                                cat = "Armor"
-                            end
-                            table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
-
-                        -- Priority 8: Other Categories
-                        else
-                            cat = itemData.class or "Miscellaneous"
-                            if not categories[cat] then cat = "Miscellaneous" end
-                            table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
-                        end
+                        Guda_CategorizeItem(itemData, bagID, slotID, categories, specialItems, isOtherChar)
                     end
                 end
             end
@@ -540,50 +449,14 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
         local items = categories[catName]
         local numItems = items and table.getn(items) or 0
         if numItems > 0 then
-            -- Sort items in category: Subclass > Quality > Name
-            table.sort(items, function(a, b)
-                -- Rank Trade Goods: meat (name ends with 'meat') = 2, egg (contains 'egg') = 1, others = 0
-                local function tgRank(d)
-                    if not d or not d.name then return 0 end
-                    local t = d.type or d.class or ""
-                    if t ~= "Trade Goods" then return 0 end
-                    local n = string.lower(d.name)
-                    if string.find(n, "meat$") then return 2 end
-                    if string.find(n, "egg") then return 1 end
-                    return 0
-                end
-                local ra = tgRank(a.itemData)
-                local rb = tgRank(b.itemData)
-                if ra ~= rb then
-                    return ra > rb
-                end
-                -- Priority: consumable restore tags (eat > drink > restore > nil)
-                local pa = a.itemData and a.itemData.restoreTag or nil
-                local pb = b.itemData and b.itemData.restoreTag or nil
-                local function pr(t)
-                    if t == "eat" then return 3 end
-                    if t == "drink" then return 2 end
-                    if t == "restore" then return 1 end
-                    return 0
-                end
-                if pr(pa) ~= pr(pb) then
-                    return pr(pa) > pr(pb)
-                end
-                -- Fallback: subclass, quality, name
-                if a.itemData.subclass ~= b.itemData.subclass then
-                    return (a.itemData.subclass or "") < (b.itemData.subclass or "")
-                end
-                if a.itemData.quality ~= b.itemData.quality then
-                    return a.itemData.quality > b.itemData.quality
-                end
-                return (a.itemData.name or "") < (b.itemData.name or "")
-            end)
+            -- Sort items using centralized sorter
+            Guda_SortCategoryItems(items)
 
             local blockCols = numItems
             if blockCols > perRow then blockCols = perRow end
             local blockRows = math.ceil(numItems / perRow)
             local blockWidth = blockCols * (buttonSize + spacing)
-            local blockHeight = 20 + (blockRows * (buttonSize + spacing)) + 5 -- 20 header, 5 padding
+            local blockHeight = 20 + (blockRows * (buttonSize + spacing)) + 5
 
             -- Check if it fits in current row
             if currentX > 0 and currentX + blockWidth + 20 > totalWidth + 5 then
@@ -639,7 +512,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
             end
             
             if blockHeight > rowMaxHeight then rowMaxHeight = blockHeight end
-            currentX = currentX + blockWidth + 20 -- 20px gap between categories
+            currentX = currentX + blockWidth + 20
         end
     end
 
@@ -655,9 +528,8 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
     }
     
     local x = startX
-    y = startY - y -- convert to coordinate relative to TOPLEFT
-    
-    -- Add spacing before special section
+    y = startY - y
+
     local hasAnyBottom = false
     for _, sec in ipairs(bottomSections) do
         if table.getn(sec.items) > 0 then
@@ -678,7 +550,6 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 numItems = (totalFreeSlots > 0) and 1 or 0
             end
             if numItems > 0 then
-                -- Sort Tools (Hearthstone/Mounts don't usually need it but good for consistency)
                 if sec.name == "Tools" then
                     table.sort(items, function(a, b)
                         if a.itemData.quality ~= b.itemData.quality then
@@ -694,14 +565,12 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 local blockWidth = blockCols * (buttonSize + spacing)
                 local blockHeight = 20 + (blockRows * (buttonSize + spacing))
 
-                -- Check if it fits in current row (Inline block for bottom sections too)
                 if currentBottomX > 0 and currentBottomX + blockWidth + 20 > totalWidth + 5 then
                     currentBottomX = 0
                     y = y - sectionMaxHeight - 5
                     sectionMaxHeight = 0
                 end
 
-                -- Add Header
                 local header = self:GetSectionHeader(headerIdx)
                 headerIdx = headerIdx + 1
                 header:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + currentBottomX, y)
@@ -714,7 +583,6 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 local sRow = 0
                 
                 if sec.name == "Empty" then
-                    -- Display one empty slot button with count
                     local bagID = firstFreeBag or 0
                     local slotID = firstFreeSlot or 1
                     local bagParent = self:GetBagParent(bagID)
@@ -731,9 +599,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                         count = totalFreeSlots, 
                         name = "Empty Slots" 
                     }
-                    -- Use fake data but real IDs for drop handling
                     Guda_ItemButton_SetItem(button, bagID, slotID, emptyItemData, false, isOtherChar and charName or nil, true, true)
-                    -- Ensure it's not actually read-only for drop behavior (it should still receive clicks/drops)
                     button.isReadOnly = false
                     button.inUse = true
                     table.insert(itemButtons, button)
@@ -760,9 +626,8 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 end
 
                 if blockHeight > sectionMaxHeight then sectionMaxHeight = blockHeight end
-                currentBottomX = currentBottomX + blockWidth + 20 -- Match the 20px gap used in top categories
+                currentBottomX = currentBottomX + blockWidth + 20
                 
-                -- If we wrapped exactly at the end of a block
                 if currentBottomX >= totalWidth then
                     currentBottomX = 0
                     y = y - sectionMaxHeight - 5
@@ -776,7 +641,6 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
         end
     end
 
-    -- Update container height
     local finalHeight = math.abs(y) + 20
     itemContainer:SetHeight(finalHeight)
     self:ResizeFrame(nil, nil, perRow, finalHeight)

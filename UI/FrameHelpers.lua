@@ -4,6 +4,160 @@ local addon = Guda
 local FrameHelpers = {}
 addon.Modules.FrameHelpers = FrameHelpers
 
+-- Standard category list used by both Bag and Bank frames
+Guda_CategoryList = {
+    "BoE", "Weapon", "Armor", "Consumable", "Food", "Drink", "Trade Goods", "Reagent", "Recipe", "Quiver", "Container", "Soul Bag", "Miscellaneous", "Quest", "Junk", "Class Items", "Keyring"
+}
+
+-- Categorize a single item into categories and specialItems tables
+-- Returns nothing, modifies tables in place
+function Guda_CategorizeItem(itemData, bagID, slotID, categories, specialItems, isOtherChar)
+    local itemName = itemData.name or ""
+    local itemType = itemData.type or ""
+    local cat = "Miscellaneous"
+
+    -- Detect consumable restore/eat/drink tag for current character only
+    if not isOtherChar and addon.Modules.Utils and addon.Modules.Utils.GetConsumableRestoreTag then
+        local tag = addon.Modules.Utils:GetConsumableRestoreTag(bagID, slotID)
+        if tag then
+            itemData.restoreTag = tag
+        end
+    end
+
+    -- Priority 1: Special items (Hearthstone, Mounts, Tools)
+    if string.find(itemName, "Hearthstone") then
+        table.insert(specialItems.Hearthstone, {bagID = bagID, slotID = slotID, itemData = itemData})
+        return
+    elseif addon.Modules.SortEngine and addon.Modules.SortEngine.IsMount and addon.Modules.SortEngine.IsMount(itemData.texture) then
+        table.insert(specialItems.Mount, {bagID = bagID, slotID = slotID, itemData = itemData})
+        return
+    elseif string.find(itemName, "Runed .* Rod") or
+       itemType == "Fishing Pole" or
+       string.find(itemName, "Mining Pick") or
+       string.find(itemName, "Blacksmith Hammer") or
+       itemName == "Arclight Spanner" or
+       itemName == "Gyromatic Micro-Adjustor" or
+       itemName == "Philosopher's Stone" or
+       string.find(itemName, "Skinning Knife") or
+       itemName == "Blood Scythe" then
+        table.insert(specialItems.Tools, {bagID = bagID, slotID = slotID, itemData = itemData})
+        return
+    end
+
+    -- Priority 2: Class Items (Soul Shards, Arrows, Bullets)
+    if addon.Modules.Utils:IsSoulShard(itemData.link) or 
+       itemData.class == "Projectile" or 
+       itemData.subclass == "Arrow" or 
+       itemData.subclass == "Bullet" then
+        table.insert(categories["Class Items"], {bagID = bagID, slotID = slotID, itemData = itemData})
+        return
+    end
+
+    -- Priority 3: Quest Items
+    if (not isOtherChar and addon.Modules.Utils:IsQuestItemTooltip(bagID, slotID)) or itemData.class == "Quest" then
+        table.insert(categories["Quest"], {bagID = bagID, slotID = slotID, itemData = itemData})
+        return
+    end
+
+    -- Priority 4: Junk (Gray items)
+    if itemData.quality == 0 or addon.Modules.Utils:IsItemGrayTooltip(bagID, slotID, itemData.link) then
+        table.insert(categories["Junk"], {bagID = bagID, slotID = slotID, itemData = itemData})
+        return
+    end
+
+    -- Priority 5: Food and Drink
+    if itemData.class == "Consumable" then
+        cat = "Consumable"
+        local sub = itemData.subclass or ""
+        if sub == "Food & Drink" or string.find(sub, "Food") or string.find(sub, "Drink") then
+            if string.find(sub, "Drink") then
+                cat = "Drink"
+            else
+                cat = "Food"
+            end
+        end
+        table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
+        return
+    end
+
+    -- Priority 6: BoE Equipment (Armor/Weapons that bind when equipped)
+    if (itemData.class == "Weapon" or itemData.class == "Armor") and not isOtherChar then
+        local isBoE = addon.Modules.Utils:IsBindOnEquip(bagID, slotID)
+        if isBoE then
+            table.insert(categories["BoE"], {bagID = bagID, slotID = slotID, itemData = itemData})
+        else
+            table.insert(categories[itemData.class], {bagID = bagID, slotID = slotID, itemData = itemData})
+        end
+        return
+    end
+
+    -- Priority 7: Equipment for other characters (can't scan tooltip)
+    if (itemData.class == "Weapon" or itemData.class == "Armor") and isOtherChar then
+        table.insert(categories[itemData.class], {bagID = bagID, slotID = slotID, itemData = itemData})
+        return
+    end
+
+    -- Priority 8: Other Categories
+    cat = itemData.class or "Miscellaneous"
+    if not categories[cat] then cat = "Miscellaneous" end
+    table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
+end
+
+-- Initialize empty category tables
+function Guda_InitCategories()
+    local categories = {}
+    for _, cat in ipairs(Guda_CategoryList) do 
+        categories[cat] = {} 
+    end
+    local specialItems = {
+        Hearthstone = {},
+        Mount = {},
+        Tools = {}
+    }
+    return categories, specialItems
+end
+
+-- Sort items within a category
+function Guda_SortCategoryItems(items)
+    table.sort(items, function(a, b)
+        -- Rank Trade Goods: meat (name ends with 'meat') = 2, egg (contains 'egg') = 1, others = 0
+        local function tgRank(d)
+            if not d or not d.name then return 0 end
+            local t = d.type or d.class or ""
+            if t ~= "Trade Goods" then return 0 end
+            local n = string.lower(d.name)
+            if string.find(n, "meat$") then return 2 end
+            if string.find(n, "egg") then return 1 end
+            return 0
+        end
+        local ra = tgRank(a.itemData)
+        local rb = tgRank(b.itemData)
+        if ra ~= rb then
+            return ra > rb
+        end
+        -- Priority: consumable restore tags (eat > drink > restore > nil)
+        local pa = a.itemData and a.itemData.restoreTag or nil
+        local pb = b.itemData and b.itemData.restoreTag or nil
+        local function pr(t)
+            if t == "eat" then return 3 end
+            if t == "drink" then return 2 end
+            if t == "restore" then return 1 end
+            return 0
+        end
+        if pr(pa) ~= pr(pb) then
+            return pr(pa) > pr(pb)
+        end
+        -- Fallback: subclass, quality, name
+        if a.itemData.subclass ~= b.itemData.subclass then
+            return (a.itemData.subclass or "") < (b.itemData.subclass or "")
+        end
+        if a.itemData.quality ~= b.itemData.quality then
+            return a.itemData.quality > b.itemData.quality
+        end
+        return (a.itemData.name or "") < (b.itemData.name or "")
+    end)
+end
+
 -- Create or return a section header for a given frame prefix and container
 function Guda_GetSectionHeader(framePrefix, containerName, index)
     local name = framePrefix .. "_SectionHeader" .. index

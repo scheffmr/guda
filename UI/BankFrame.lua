@@ -234,100 +234,18 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
     local perRow = addon.Modules.DB:GetSetting("bankColumns") or 10
     local itemContainer = getglobal("Guda_BankFrame_ItemContainer")
 
-    -- Group items by category
-    local categories = {}
-    local categoryList = {
-        "Weapon", "Armor", "Consumable", "Food", "Drink", "Trade Goods", "Reagent", "Recipe", "Quiver", "Container", "Soul Bag", "Miscellaneous", "Quest", "Junk", "Class Items"
-    }
-    for _, cat in ipairs(categoryList) do categories[cat] = {} end
+    -- Use centralized category initialization
+    local categories, specialItems = Guda_InitCategories()
+    local categoryList = Guda_CategoryList
 
-    local specialItems = {
-        Hearthstone = {},
-        Mount = {},
-        Tools = {},
-        Empty = {}
-    }
-
-    -- Helper to assign category
-    local function CategorizeItem(itemData, bagID, slotID)
-        local itemName = itemData.name or ""
-        local itemType = itemData.type or ""
-        local cat = "Miscellaneous"
-
-        -- Priority 1: Special items (Hearthstone, Mounts, Tools)
-        if string.find(itemName, "Hearthstone") then
-            table.insert(specialItems.Hearthstone, {bagID = bagID, slotID = slotID, itemData = itemData})
-            return
-        elseif addon.Modules.SortEngine and addon.Modules.SortEngine.IsMount and addon.Modules.SortEngine.IsMount(itemData.texture) then
-            table.insert(specialItems.Mount, {bagID = bagID, slotID = slotID, itemData = itemData})
-            return
-        elseif string.find(itemName, "Runed .* Rod") or
-           itemType == "Fishing Pole" or
-           string.find(itemName, "Mining Pick") or
-           string.find(itemName, "Blacksmith Hammer") or
-           itemName == "Arclight Spanner" or
-           itemName == "Gyromatic Micro-Adjustor" or
-           itemName == "Philosopher's Stone" or
-           string.find(itemName, "Skinning Knife") or
-           itemName == "Blood Scythe" then
-            table.insert(specialItems.Tools, {bagID = bagID, slotID = slotID, itemData = itemData})
-            return
-        end
-
-        -- Priority 2: Class Items (Soul Shards, Arrows, Bullets)
-        if addon.Modules.Utils:IsSoulShard(itemData.link) or 
-           itemData.class == "Projectile" or 
-           itemData.subclass == "Arrow" or 
-           itemData.subclass == "Bullet" then
-            table.insert(categories["Class Items"], {bagID = bagID, slotID = slotID, itemData = itemData})
-            return
-        end
-
-        -- Priority 3: Quest Items
-        if (not isOtherChar and addon.Modules.Utils:IsQuestItemTooltip(bagID, slotID)) or itemData.class == "Quest" then
-            cat = "Quest"
-        
-        -- Priority 4: Junk (Gray items)
-        elseif itemData.quality == 0 or addon.Modules.Utils:IsItemGrayTooltip(bagID, slotID, itemData.link) then
-            cat = "Junk"
-        
-        -- Priority 5: Food and Drink
-        elseif itemData.class == "Consumable" then
-            cat = "Consumable"
-            local sub = itemData.subclass or ""
-            if sub == "Food & Drink" or string.find(sub, "Food") or string.find(sub, "Drink") then
-                if string.find(sub, "Drink") then
-                    cat = "Drink"
-                else
-                    cat = "Food"
-                end
-            end
-
-        -- Priority 4: Equipment (Weapon and Armor)
-        elseif itemData.equipSlot and itemData.equipSlot ~= "" then
-            if itemData.class == "Weapon" or itemData.class == "Armor" then
-                cat = itemData.class
-            else
-                cat = "Armor"
-            end
-        
-        -- Priority 5: Other Categories
-        else
-            cat = itemData.class or "Miscellaneous"
-        end
-
-        if not categories[cat] then cat = "Miscellaneous" end
-        table.insert(categories[cat], {bagID = bagID, slotID = slotID, itemData = itemData})
-    end
-
-    -- Bank slots
+    -- Categorize all items using centralized function
     for _, bagID in ipairs(addon.Constants.BANK_BAGS) do
         if not hiddenBankBags[bagID] then
             local bag = bankData[bagID]
             if bag and bag.slots then
                 for slotID, itemData in pairs(bag.slots) do
                     if itemData then
-                        CategorizeItem(itemData, bagID, slotID)
+                        Guda_CategorizeItem(itemData, bagID, slotID, categories, specialItems, isOtherChar)
                     end
                 end
             end
@@ -366,16 +284,8 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
         local items = categories[catName]
         local numItems = items and table.getn(items) or 0
         if numItems > 0 then
-            -- Sort items in category: Subclass > Quality > Name
-            table.sort(items, function(a, b)
-                if a.itemData.subclass ~= b.itemData.subclass then
-                    return (a.itemData.subclass or "") < (b.itemData.subclass or "")
-                end
-                if a.itemData.quality ~= b.itemData.quality then
-                    return a.itemData.quality > b.itemData.quality
-                end
-                return (a.itemData.name or "") < (b.itemData.name or "")
-            end)
+            -- Sort items using centralized sorter
+            Guda_SortCategoryItems(items)
 
             local blockCols = numItems
             if blockCols > perRow then blockCols = perRow end
@@ -436,7 +346,7 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
             end
             
             if blockHeight > rowMaxHeight then rowMaxHeight = blockHeight end
-            currentX = currentX + blockWidth + 20 -- 20px gap between categories
+            currentX = currentX + blockWidth + 20
         end
     end
 
@@ -452,9 +362,8 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
     }
     
     local x = startX
-    y = startY - y -- convert to coordinate relative to TOPLEFT
+    y = startY - y
     
-    -- Add spacing before special section
     local hasAnyBottom = false
     for _, sec in ipairs(bottomSections) do
         if table.getn(sec.items) > 0 then
@@ -475,7 +384,6 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
                 numItems = (totalFreeSlots > 0) and 1 or 0
             end
             if numItems > 0 then
-                -- Sort Tools (Hearthstone/Mounts don't usually need it but good for consistency)
                 if sec.name == "Tools" then
                     table.sort(items, function(a, b)
                         if a.itemData.quality ~= b.itemData.quality then
@@ -491,14 +399,12 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
                 local blockWidth = blockCols * (buttonSize + spacing)
                 local blockHeight = 20 + (blockRows * (buttonSize + spacing))
 
-                -- Check if it fits in current row (Inline block for bottom sections too)
                 if currentBottomX > 0 and currentBottomX + blockWidth + 20 > totalWidth + 5 then
                     currentBottomX = 0
                     y = y - sectionMaxHeight - 5
                     sectionMaxHeight = 0
                 end
 
-                -- Add Header
                 local header = self:GetSectionHeader(headerIdx)
                 headerIdx = headerIdx + 1
                 header:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", x + currentBottomX, y)
@@ -511,7 +417,6 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
                 local sRow = 0
                 
                 if sec.name == "Empty" then
-                    -- Display one empty slot button with count
                     local bagID = firstFreeBag or -1
                     local slotID = firstFreeSlot or 1
                     local bagParent = self:GetBagParent(bagID)
@@ -528,9 +433,7 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
                         count = totalFreeSlots, 
                         name = "Empty Slots" 
                     }
-                    -- Use fake data but real IDs for drop handling
                     Guda_ItemButton_SetItem(button, bagID, slotID, emptyItemData, true, isOtherChar and charName or nil, true, true)
-                    -- Ensure it's not actually read-only for drop behavior
                     button.isReadOnly = false
                     button.inUse = true
                 else
@@ -555,9 +458,8 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
                 end
 
                 if blockHeight > sectionMaxHeight then sectionMaxHeight = blockHeight end
-                currentBottomX = currentBottomX + blockWidth + 20 -- Match the 20px gap used in top categories
+                currentBottomX = currentBottomX + blockWidth + 20
                 
-                -- If we wrapped exactly at the end of a block
                 if currentBottomX >= totalWidth then
                     currentBottomX = 0
                     y = y - sectionMaxHeight - 5
@@ -571,7 +473,6 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
         end
     end
     
-    -- Update container height
     local finalHeight = math.abs(y) + 20
     itemContainer:SetHeight(finalHeight)
     self:ResizeFrame(nil, nil, perRow, finalHeight)
