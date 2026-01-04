@@ -206,10 +206,12 @@ function Utils:IsQuestItemTooltip(bagID, slotID)
             if text then
                 local tl = string.lower(text)
                 -- Only match explicit quest markers to avoid misclassifying consumables/recipes
+                -- Include "manual" which some quest items use (same as ItemButton detection)
                 if string.find(tl, "quest starter") or
                    string.find(tl, "this item begins a quest") or
                    string.find(tl, "starts a quest") or
-                   string.find(tl, "quest item") then
+                   string.find(tl, "quest item") or
+                   string.find(tl, "manual") then
                     return true
                 end
             end
