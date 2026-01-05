@@ -25,7 +25,7 @@ addon.QuestItemsDB = {
         [2296] = true,
     },
     horde = {
-        [2296] = true,
+        --[2296] = true,
     },
 }
 
