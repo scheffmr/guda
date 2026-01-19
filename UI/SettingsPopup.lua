@@ -1375,10 +1375,50 @@ function Guda_SettingsPopup_CategoriesTab_Update()
         end
     end
 
-    -- Set reset button text
+    -- Set button texts
+    local addBtn = getglobal("Guda_SettingsPopup_AddCategoryButton")
+    if addBtn then
+        addBtn:SetText("+ Add Category")
+    end
+
     local resetBtn = getglobal("Guda_SettingsPopup_ResetCategoriesButton")
     if resetBtn then
-        resetBtn:SetText("Reset to Defaults")
+        resetBtn:SetText("Reset Defaults")
+    end
+end
+
+-- Add new custom category
+function Guda_SettingsPopup_AddCategory_OnClick()
+    if not Guda.Modules.CategoryManager then return end
+
+    -- Generate unique ID
+    local baseId = "Custom"
+    local counter = 1
+    local newId = baseId .. counter
+
+    local cats = Guda.Modules.CategoryManager:GetCategories()
+    while cats.definitions[newId] do
+        counter = counter + 1
+        newId = baseId .. counter
+    end
+
+    -- Create new category definition
+    local newDef = {
+        name = "New Category " .. counter,
+        icon = "Interface\\Icons\\INV_Misc_QuestionMark",
+        rules = {},
+        matchMode = "any",
+        priority = 50,
+        enabled = true,
+        isBuiltIn = false,
+    }
+
+    -- Add to database
+    if Guda.Modules.CategoryManager:AddCategory(newId, newDef) then
+        -- Update display
+        Guda_SettingsPopup_CategoriesTab_Update()
+        -- Open editor for the new category
+        Guda_CategoryEditor_Open(newId)
     end
 end
 

@@ -329,6 +329,25 @@ function CategoryManager:MigrateCategories()
         boeCat.priority = 75
         addon:Debug("CategoryManager: Migrated BoE priority to 75")
     end
+
+    -- Migrate Junk category to ensure proper rules and priority
+    local junkCat = cats.definitions["Junk"]
+    if junkCat and junkCat.isBuiltIn then
+        local needsUpdate = false
+        -- Check if priority is too low
+        if not junkCat.priority or junkCat.priority < 85 then
+            junkCat.priority = 85
+            needsUpdate = true
+        end
+        -- Check if rules are missing or wrong
+        if not junkCat.rules or table.getn(junkCat.rules) == 0 then
+            junkCat.rules = { { type = "quality", value = 0 } }
+            needsUpdate = true
+        end
+        if needsUpdate then
+            addon:Debug("CategoryManager: Migrated Junk category")
+        end
+    end
 end
 
 -- Get all categories
@@ -497,6 +516,17 @@ function CategoryManager:EvaluateRule(rule, itemData, bagID, slotID, isOtherChar
         return string.find(itemName, ruleValue) ~= nil
 
     elseif ruleType == "quality" then
+        -- For quality 0 (gray/junk), also check tooltip as fallback
+        if ruleValue == 0 then
+            if itemData.quality == 0 then
+                return true
+            end
+            -- Tooltip fallback for gray detection (current character only)
+            if not isOtherChar and addon.Modules.Utils and addon.Modules.Utils.IsItemGrayTooltip then
+                return addon.Modules.Utils:IsItemGrayTooltip(bagID, slotID, itemData.link)
+            end
+            return false
+        end
         return itemData.quality == ruleValue
 
     elseif ruleType == "qualityMin" then

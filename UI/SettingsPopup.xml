@@ -692,10 +692,10 @@
                         </Anchors>
                     </Frame>
 
-                    <!-- Reset to Defaults Button -->
-                    <Button name="Guda_SettingsPopup_ResetCategoriesButton" inherits="UIPanelButtonTemplate">
+                    <!-- Add Category Button -->
+                    <Button name="Guda_SettingsPopup_AddCategoryButton" inherits="UIPanelButtonTemplate">
                         <Size>
-                            <AbsDimension x="140" y="25"/>
+                            <AbsDimension x="120" y="25"/>
                         </Size>
                         <Anchors>
                             <Anchor point="BOTTOMLEFT" relativeTo="$parent" relativePoint="BOTTOMLEFT">
@@ -706,14 +706,28 @@
                         </Anchors>
                         <Scripts>
                             <OnClick>
+                                Guda_SettingsPopup_AddCategory_OnClick()
+                            </OnClick>
+                        </Scripts>
+                    </Button>
+
+                    <!-- Reset to Defaults Button -->
+                    <Button name="Guda_SettingsPopup_ResetCategoriesButton" inherits="UIPanelButtonTemplate">
+                        <Size>
+                            <AbsDimension x="120" y="25"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="LEFT" relativeTo="Guda_SettingsPopup_AddCategoryButton" relativePoint="RIGHT">
+                                <Offset>
+                                    <AbsDimension x="10" y="0"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnClick>
                                 Guda_SettingsPopup_ResetCategories_OnClick()
                             </OnClick>
                         </Scripts>
-                        <NormalText>
-                            <Anchors>
-                                <Anchor point="CENTER"/>
-                            </Anchors>
-                        </NormalText>
                     </Button>
                 </Frames>
             </Frame>
