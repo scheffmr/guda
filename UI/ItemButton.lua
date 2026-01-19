@@ -919,10 +919,22 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
             emptySlotBg:SetAlpha(0.3)  -- More subtle for filled slots
         end
 
-        -- Search filtering
+        -- Check if item is junk using the CategoryManager
+        local isJunk = false
+        if itemData and addon.Modules.CategoryManager then
+            local category = addon.Modules.CategoryManager:CategorizeItem(itemData, bagID, slotID, self.otherChar)
+            isJunk = (category == "Junk")
+        end
+
+        -- Search filtering and junk opacity
         if matchesFilter then
-            -- Matching items: full opacity (1.0)
-            self:SetAlpha(1.0)
+            if isJunk then
+                -- Junk items: 60% opacity
+                self:SetAlpha(0.6)
+            else
+                -- Normal items: full opacity (1.0)
+                self:SetAlpha(1.0)
+            end
         else
             -- Non-matching items: 25% opacity (0.25) - very dim
             self:SetAlpha(0.25)
