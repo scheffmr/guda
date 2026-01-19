@@ -183,9 +183,9 @@ local DEFAULT_CATEGORIES = {
             name = "Junk",
             icon = "Interface\\Icons\\INV_Misc_Gear_06",
             rules = {
-                { type = "quality", value = 0 }
+                { type = "isJunk", value = true }
             },
-            matchMode = "all",
+            matchMode = "any",
             priority = 85,
             enabled = true,
             isBuiltIn = true,
@@ -330,7 +330,7 @@ function CategoryManager:MigrateCategories()
         addon:Debug("CategoryManager: Migrated BoE priority to 75")
     end
 
-    -- Migrate Junk category to ensure proper rules and priority
+    -- Migrate Junk category to use isJunk rule type
     local junkCat = cats.definitions["Junk"]
     if junkCat and junkCat.isBuiltIn then
         local needsUpdate = false
@@ -339,13 +339,23 @@ function CategoryManager:MigrateCategories()
             junkCat.priority = 85
             needsUpdate = true
         end
+        -- Migrate from quality=0 rule to isJunk rule
+        if junkCat.rules then
+            for i, rule in ipairs(junkCat.rules) do
+                if rule.type == "quality" and rule.value == 0 then
+                    junkCat.rules = { { type = "isJunk", value = true } }
+                    needsUpdate = true
+                    break
+                end
+            end
+        end
         -- Check if rules are missing or wrong
         if not junkCat.rules or table.getn(junkCat.rules) == 0 then
-            junkCat.rules = { { type = "quality", value = 0 } }
+            junkCat.rules = { { type = "isJunk", value = true } }
             needsUpdate = true
         end
         if needsUpdate then
-            addon:Debug("CategoryManager: Migrated Junk category")
+            addon:Debug("CategoryManager: Migrated Junk category to use isJunk rule")
         end
     end
 end
@@ -601,6 +611,31 @@ function CategoryManager:EvaluateRule(rule, itemData, bagID, slotID, isOtherChar
         local tag = itemData.restoreTag
         if not tag then return false end
         return tag == ruleValue
+
+    elseif ruleType == "isJunk" then
+        -- Junk items: gray items (quality 0) OR white equippable items (quality 1 + Weapon/Armor)
+        local quality = itemData.quality
+        local isGray = false
+        local isWhiteEquip = false
+
+        -- Check for gray items (quality 0)
+        if quality == 0 then
+            isGray = true
+        elseif not isOtherChar and addon.Modules.Utils and addon.Modules.Utils.IsItemGrayTooltip then
+            -- Tooltip fallback for gray detection
+            isGray = addon.Modules.Utils:IsItemGrayTooltip(bagID, slotID, itemData.link)
+        end
+
+        -- Check for white equippable items (quality 1 + Weapon/Armor)
+        if quality == 1 then
+            local itemClass = itemData.class or ""
+            if itemClass == "Weapon" or itemClass == "Armor" then
+                isWhiteEquip = true
+            end
+        end
+
+        local isJunk = isGray or isWhiteEquip
+        return isJunk == ruleValue
     end
 
     return false
@@ -696,8 +731,10 @@ function CategoryManager:GetRuleTypes()
         { id = "itemSubtype", name = "Item Subtype", description = "Match by item subclass (Cloth, Potion, etc.)" },
         { id = "namePattern", name = "Name Pattern", description = "Match item name (supports Lua patterns)" },
         { id = "quality", name = "Quality", description = "Match by item quality (0=Gray to 5=Legendary)" },
+        { id = "qualityMin", name = "Quality (min)", description = "Match items with at least this quality" },
         { id = "isBoE", name = "Bind on Equip", description = "Match items that bind when equipped" },
         { id = "isQuestItem", name = "Quest Item", description = "Match quest items" },
+        { id = "isJunk", name = "Is Junk", description = "Match junk items (gray + white equippable)" },
         { id = "texturePattern", name = "Icon Pattern", description = "Match icon texture path" },
         { id = "itemID", name = "Item ID", description = "Match specific item IDs" },
         { id = "isSoulShard", name = "Soul Shard", description = "Match soul shards" },
