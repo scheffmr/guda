@@ -3,7 +3,7 @@
     <!-- Settings Popup Frame -->
     <Frame name="Guda_SettingsPopup" toplevel="true" movable="true" enableMouse="true" hidden="true" parent="UIParent" frameStrata="DIALOG">
         <Size>
-            <AbsDimension x="500" y="520"/>
+            <AbsDimension x="500" y="525"/>
         </Size>
 
         <Anchors>
@@ -554,10 +554,32 @@
                         </Scripts>
                     </Slider>
 
+                    <!-- Junk Item Opacity Slider -->
+                    <Slider name="Guda_SettingsPopup_JunkOpacitySlider" inherits="OptionsSliderTemplate">
+                        <Size>
+                            <AbsDimension x="450" y="17"/>
+                        </Size>
+                        <Anchors>
+                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_TrackedBarSizeSlider">
+                                <Offset>
+                                    <AbsDimension x="0" y="-40"/>
+                                </Offset>
+                            </Anchor>
+                        </Anchors>
+                        <Scripts>
+                            <OnLoad>
+                                Guda_SettingsPopup_JunkOpacitySlider_OnLoad(this)
+                            </OnLoad>
+                            <OnValueChanged>
+                                Guda_SettingsPopup_JunkOpacitySlider_OnValueChanged(this)
+                            </OnValueChanged>
+                        </Scripts>
+                    </Slider>
+
                     <!-- Quality Border Equipment Checkbox -->
                     <CheckButton name="Guda_SettingsPopup_QualityBorderEquipmentCheckbox" inherits="OptionsCheckButtonTemplate">
                         <Anchors>
-                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_TrackedBarSizeSlider">
+                            <Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="Guda_SettingsPopup_JunkOpacitySlider">
                                 <Offset>
                                     <AbsDimension x="0" y="-30"/>
                                 </Offset>

@@ -304,11 +304,15 @@ function Guda_ItemButton_OnLoad(self)
                 local itemID = addon.Modules.Utils:ExtractItemID(link)
                 if itemID then
                     local isQuest = IsQuestItem(this.bagID, this.slotID, this.isBank)
-                    if isQuest and addon.Modules.QuestItemBar and addon.Modules.QuestItemBar.PinItem then
+                    local isUnique = addon.Modules.Utils:IsUniqueItem(this.bagID, this.slotID, link)
+
+                    -- Only pin to QuestItemBar if it's a unique quest item
+                    if isQuest and isUnique and addon.Modules.QuestItemBar and addon.Modules.QuestItemBar.PinItem then
                         addon.Modules.QuestItemBar:PinItem(itemID)
                         return
                     end
-                    
+
+                    -- Track non-unique quest items and regular items in TrackedItemBar
                     local trackedItems = addon.Modules.DB:GetSetting("trackedItems") or {}
                     if trackedItems[itemID] then
                         trackedItems[itemID] = nil
@@ -316,7 +320,7 @@ function Guda_ItemButton_OnLoad(self)
                         trackedItems[itemID] = true
                     end
                     addon.Modules.DB:SetSetting("trackedItems", trackedItems)
-                    
+
                     -- Update all item buttons
                     if Guda.Modules.BagFrame and Guda.Modules.BagFrame.Update then
                         Guda.Modules.BagFrame:Update()
@@ -929,8 +933,12 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
         -- Search filtering and junk opacity
         if matchesFilter then
             if isJunk then
-                -- Junk items: 60% opacity
-                self:SetAlpha(0.6)
+                -- Junk items: configurable opacity (default 60%)
+                local junkOpacity = 0.6
+                if addon.Modules.DB and addon.Modules.DB.GetSetting then
+                    junkOpacity = addon.Modules.DB:GetSetting("junkOpacity") or 0.6
+                end
+                self:SetAlpha(junkOpacity)
             else
                 -- Normal items: full opacity (1.0)
                 self:SetAlpha(1.0)

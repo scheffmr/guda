@@ -692,6 +692,49 @@ function Utils:IsBindOnEquip(bagID, slotID, itemLink)
     return false
 end
 
+-- Check if an item is "Unique" by scanning its tooltip
+function Utils:IsUniqueItem(bagID, slotID, itemLink)
+    if not bagID or not slotID then return false end
+
+    local tooltip = GetScanTooltip()
+    if not tooltip then return false end
+
+    tooltip:ClearLines()
+
+    -- Try SetBagItem first (works for regular bags and bank when open)
+    tooltip:SetBagItem(bagID, slotID)
+
+    local numLines = tooltip:NumLines()
+
+    -- If no lines and we have itemLink, try SetHyperlink with itemString as fallback
+    if (not numLines or numLines == 0) and itemLink then
+        local _, _, itemString = string.find(itemLink, "(item:%d+:%d+:%d+:%d+)")
+        if itemString then
+            tooltip:ClearLines()
+            tooltip:SetHyperlink(itemString)
+            numLines = tooltip:NumLines()
+        end
+    end
+
+    if not numLines or numLines == 0 then return false end
+
+    -- Check tooltip lines for "Unique" (but not "Unique-Equipped")
+    for i = 1, numLines do
+        local line = getglobal("GudaBagScanTooltipTextLeft" .. i)
+        if line then
+            local text = line:GetText()
+            if text then
+                local textLower = string.lower(text)
+                -- Match "unique" but not "unique-equipped"
+                if textLower == "unique" or string.find(textLower, "^unique$") or string.find(textLower, "^unique%s") then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
 -- Check if an item is equipment (armor, weapon, or other equippable)
 -- Returns: true if item is equipment, false otherwise
 function Utils:IsEquipment(itemLink)

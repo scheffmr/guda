@@ -36,11 +36,7 @@ function Guda_SettingsPopup_OnLoad(self)
                      "Left Click on an item in the bar to use it.\n" ..
                      "Alt + Left Click on an item in the bar to untrack it.\n\n" ..
                      "|cffffd100Moving Bars:|r\n" ..
-                     "Shift + Left Click and drag any item on the Quest Item Bar or Tracked Item Bar to move the bar.\n" ..
-                     "You can also drag the bar background if it's visible.\n\n" ..
-                     "|cffffd100Quest Item Bar:|r\n" ..
-                     "Alt + Left Click on a quest item in your bags to pin it.\n" ..
-                     "Alt + Right Click on an item in the bar to unpin it."
+                     "Shift + Left Click and drag any item on the Quest Item Bar or Tracked Item Bar to move the bar.\n"
         instructions:SetText(text)
     end
 
@@ -132,6 +128,7 @@ function Guda_SettingsPopup_OnShow(self)
     local bankViewType = Guda.Modules.DB:GetSetting("bankViewType") or "single"
     local questBarSize = Guda.Modules.DB:GetSetting("questBarSize") or 36
     local trackedBarSize = Guda.Modules.DB:GetSetting("trackedBarSize") or 36
+    local junkOpacity = Guda.Modules.DB:GetSetting("junkOpacity") or 0.6
 
     -- Update sliders and checkboxes
     local bagSlider = getglobal("Guda_SettingsPopup_BagColumnsSlider")
@@ -142,6 +139,7 @@ function Guda_SettingsPopup_OnShow(self)
     local bgTransparencySlider = getglobal("Guda_SettingsPopup_BgTransparencySlider")
     local questBarSizeSlider = getglobal("Guda_SettingsPopup_QuestBarSizeSlider")
     local trackedBarSizeSlider = getglobal("Guda_SettingsPopup_TrackedBarSizeSlider")
+    local junkOpacitySlider = getglobal("Guda_SettingsPopup_JunkOpacitySlider")
     local lockCheckbox = getglobal("Guda_SettingsPopup_LockBagsCheckbox")
     local hideBordersCheckbox = getglobal("Guda_SettingsPopup_HideBordersCheckbox")
     local qualityBorderEquipmentCheckbox = getglobal("Guda_SettingsPopup_QualityBorderEquipmentCheckbox")
@@ -189,6 +187,10 @@ function Guda_SettingsPopup_OnShow(self)
 
     if trackedBarSizeSlider then
         trackedBarSizeSlider:SetValue(trackedBarSize)
+    end
+
+    if junkOpacitySlider then
+        junkOpacitySlider:SetValue(junkOpacity)
     end
 
     if lockCheckbox then
@@ -1043,6 +1045,52 @@ function Guda_SettingsPopup_ShowTooltipCountsCheckbox_OnClick(self)
     -- Save setting
     if Guda and Guda.Modules and Guda.Modules.DB then
         Guda.Modules.DB:SetSetting("showTooltipCounts", isChecked)
+    end
+end
+
+-- Junk Opacity Slider OnLoad
+function Guda_SettingsPopup_JunkOpacitySlider_OnLoad(self)
+    getglobal(self:GetName().."Low"):SetText("10%")
+    getglobal(self:GetName().."High"):SetText("100%")
+
+    local text = getglobal(self:GetName().."Text")
+    text:SetText("Junk item opacity")
+
+    -- Increase font size
+    local font, _, flags = text:GetFont()
+    if font then
+        text:SetFont(font, 12, flags)
+    end
+
+    self:SetMinMaxValues(0.1, 1.0)
+    self:SetValueStep(0.05)
+
+    local currentValue = Guda.Modules.DB:GetSetting("junkOpacity") or 0.6
+    self:SetValue(currentValue)
+end
+
+-- Junk Opacity Slider OnValueChanged
+function Guda_SettingsPopup_JunkOpacitySlider_OnValueChanged(self)
+    local value = self:GetValue()
+    -- Round to 2 decimal places
+    value = math.floor(value * 100 + 0.5) / 100
+
+    -- Update display text
+    getglobal(self:GetName().."Text"):SetText("Junk item opacity: " .. math.floor(value * 100) .. "%")
+
+    -- Save setting
+    Guda.Modules.DB:SetSetting("junkOpacity", value)
+
+    -- Update bag frame if visible
+    local bagFrame = getglobal("Guda_BagFrame")
+    if bagFrame and bagFrame:IsShown() then
+        Guda.Modules.BagFrame:Update()
+    end
+
+    -- Update bank frame if visible
+    local bankFrame = getglobal("Guda_BankFrame")
+    if bankFrame and bankFrame:IsShown() then
+        Guda.Modules.BankFrame:Update()
     end
 end
 

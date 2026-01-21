@@ -21,15 +21,25 @@ local function GetScanTooltip()
     return scanTooltip
 end
 
+-- Check if an item is a quest item by scanning tooltip
+local function IsQuestItem(bagID, slotID)
+    if addon.Modules.Utils and addon.Modules.Utils.IsQuestItem then
+        return addon.Modules.Utils:IsQuestItem(bagID, slotID, nil, false, false)
+    end
+    return false, false
+end
+
 -- Scan bags for tracked items and calculate total counts
 function TrackedItemBar:ScanForTrackedItems()
     trackedItemsInfo = {}
     local trackedIDs = addon.Modules.DB:GetSetting("trackedItems") or {}
-    
+
     local itemCounts = {}
     local itemTextures = {}
     local itemLinks = {}
     local itemOrder = {}
+    local itemIsQuest = {}
+    local itemIsQuestStarter = {}
 
     -- Scan backpack and 4 bags
     for bagID = 0, 4 do
@@ -46,6 +56,10 @@ function TrackedItemBar:ScanForTrackedItems()
                         itemLinks[id] = link
                         itemCounts[id .. "_bag"] = bagID
                         itemCounts[id .. "_slot"] = slotID
+                        -- Check if quest item
+                        local isQuest, isStarter = IsQuestItem(bagID, slotID)
+                        itemIsQuest[id] = isQuest
+                        itemIsQuestStarter[id] = isStarter
                         table.insert(itemOrder, id)
                     end
                     itemCounts[id] = itemCounts[id] + count
@@ -61,7 +75,9 @@ function TrackedItemBar:ScanForTrackedItems()
             count = itemCounts[id],
             link = itemLinks[id],
             bagID = itemCounts[id .. "_bag"],
-            slotID = itemCounts[id .. "_slot"]
+            slotID = itemCounts[id .. "_slot"],
+            isQuest = itemIsQuest[id],
+            isQuestStarter = itemIsQuestStarter[id]
         })
     end
 end
@@ -92,7 +108,32 @@ function TrackedItemBar:Update()
         if not button then
             button = CreateFrame("Button", "Guda_TrackedItemBarButton" .. i, frame, "Guda_ItemButtonTemplate")
             table.insert(buttons, button)
-            
+
+            -- Create quest border (golden)
+            local questBorder = CreateFrame("Frame", nil, button)
+            questBorder:SetFrameLevel(button:GetFrameLevel() + 6)
+            questBorder:SetBackdrop({
+                bgFile = nil,
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+                edgeSize = 12,
+                insets = {left = 4, right = 4, top = 4, bottom = 4}
+            })
+            questBorder:SetBackdropBorderColor(1.0, 0.82, 0, 1)
+            questBorder:Hide()
+            button.questBorder = questBorder
+
+            -- Create quest icon (question mark in corner)
+            local questIcon = CreateFrame("Frame", nil, button)
+            questIcon:SetFrameLevel(button:GetFrameLevel() + 7)
+            questIcon:SetWidth(16)
+            questIcon:SetHeight(16)
+            local iconTex = questIcon:CreateTexture(nil, "OVERLAY")
+            iconTex:SetAllPoints(questIcon)
+            iconTex:SetTexture("Interface\\GossipFrame\\ActiveQuestIcon")
+            iconTex:SetTexCoord(0, 1, 0, 1)
+            questIcon:Hide()
+            button.questIcon = questIcon
+
             button:RegisterForDrag("LeftButton")
             button:SetScript("OnDragStart", function() end)
             button:SetScript("OnReceiveDrag", function() end)
@@ -188,6 +229,42 @@ function TrackedItemBar:Update()
         if emptyBg then
             emptyBg:SetWidth(buttonSize)
             emptyBg:SetHeight(buttonSize)
+        end
+
+        -- Position and show/hide quest border
+        if button.questBorder then
+            button.questBorder:ClearAllPoints()
+            button.questBorder:SetPoint("TOPLEFT", icon, "TOPLEFT", -2, 2)
+            button.questBorder:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", 2, -2)
+            if info.isQuest then
+                button.questBorder:Show()
+            else
+                button.questBorder:Hide()
+            end
+        end
+
+        -- Position and show/hide quest icon
+        if button.questIcon then
+            local questIconSize = math.max(12, math.min(20, buttonSize * 0.35))
+            button.questIcon:SetWidth(questIconSize)
+            button.questIcon:SetHeight(questIconSize)
+            button.questIcon:ClearAllPoints()
+            button.questIcon:SetPoint("TOPRIGHT", button, "TOPRIGHT", 1, 0)
+
+            if info.isQuest then
+                -- Set appropriate texture based on quest type
+                local tex = button.questIcon:GetRegions()
+                if tex and tex.SetTexture then
+                    if info.isQuestStarter then
+                        tex:SetTexture("Interface\\GossipFrame\\AvailableQuestIcon")
+                    else
+                        tex:SetTexture("Interface\\GossipFrame\\ActiveQuestIcon")
+                    end
+                end
+                button.questIcon:Show()
+            else
+                button.questIcon:Hide()
+            end
         end
 
         button:Show()
