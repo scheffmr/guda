@@ -12,6 +12,9 @@ addon.BUILD = "TurtleWoW-1.12.1"
 -- Debug flag
 addon.DEBUG = false
 
+-- Debug sort flag (verbose sorting output)
+addon.DEBUG_SORT = false
+
 -- Constants
 addon.Constants = {
     -- Bag IDs
@@ -229,6 +232,14 @@ function addon:Debug(msg, a1, a2, a3, a4, a5, a6, a7)
     if self.DEBUG then
         local text = string.format(msg, a1, a2, a3, a4, a5, a6, a7)
         DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00[Debug]|r |cFF00FF96Guda:|r " .. text)
+    end
+end
+
+-- Debug sort print (only shows when DEBUG_SORT is enabled)
+function addon:DebugSort(msg, a1, a2, a3, a4, a5, a6, a7)
+    if self.DEBUG_SORT then
+        local text = string.format(msg, a1, a2, a3, a4, a5, a6, a7)
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF87CEEB[Sort]|r |cFF00FF96Guda:|r " .. text)
     end
 end
 

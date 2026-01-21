@@ -122,6 +122,11 @@ function Main:SetupSlashCommands()
             addon.DEBUG = not addon.DEBUG
             addon:Print("Debug mode: %s", addon.DEBUG and "ON" or "OFF")
 
+        elseif msg == "debugsort" then
+            -- Toggle debug sort (verbose sorting output)
+            addon.DEBUG_SORT = not addon.DEBUG_SORT
+            addon:Print("Debug sort mode: %s", addon.DEBUG_SORT and "ON" or "OFF")
+
         elseif msg == "quest" then
             -- Toggle quest bar
             local show = not addon.Modules.DB:GetSetting("showQuestBar")
@@ -154,6 +159,7 @@ function Main:SetupSlashCommands()
             addon:Print("/guda sortbank - Sort bank")
             addon:Print("/guda track - Toggle item tracking")
             addon:Print("/guda debug - Toggle debug mode")
+            addon:Print("/guda debugsort - Toggle sort debug output")
             addon:Print("/guda cleanup - Remove old characters")
 
         else

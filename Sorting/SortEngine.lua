@@ -1457,8 +1457,8 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
 	self.sortingInProgress = true
 	self:UpdateSortButtonState(true)
 
-	-- Print analysis results
-	addon:Print("Sorting %s... (%d/%d items need sorting, estimated %d passes)",
+	-- Print analysis results (only when debug sort is enabled)
+	addon:DebugSort("Sorting %s... (%d/%d items need sorting, estimated %d passes)",
 		sortType, analysis.itemsOutOfPlace, analysis.totalItems, analysis.passes)
 
  local passCount = 0
@@ -1467,7 +1467,7 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
  local totalMoves = 0
  local noProgressPasses = 0
 
-	addon:Print("Starting %s sort (estimated: %d passes, safety limit: %d)", sortType, maxPasses, safetyLimit)
+	addon:DebugSort("Starting %s sort (estimated: %d passes, safety limit: %d)", sortType, maxPasses, safetyLimit)
 
 	local function DoSortPass()
 		passCount = passCount + 1
@@ -1481,7 +1481,7 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
 
   if currentAnalysis.alreadySorted then
             -- Sorting is complete!
-            addon:Print("%s sort complete! (%d passes, %d total moves)", sortType, passCount, totalMoves)
+            addon:DebugSort("%s sort complete! (%d passes, %d total moves)", sortType, passCount, totalMoves)
 
 			-- Final update
 			local frame = CreateFrame("Frame")
@@ -1496,7 +1496,7 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
 			end)
   elseif passCount >= safetyLimit then
             -- Hit safety limit but not fully sorted
-            addon:Print("%s sort stopped at safety limit! (%d/%d items still need sorting after %d passes)",
+            addon:DebugSort("%s sort stopped at safety limit! (%d/%d items still need sorting after %d passes)",
                 sortType, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems, passCount)
 
 			-- Final update
@@ -1519,7 +1519,7 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
             end
 
             if noProgressPasses >= 5 then
-                addon:Print("%s sort stopped due to no progress after %d passes (items remaining: %d/%d)",
+                addon:DebugSort("%s sort stopped due to no progress after %d passes (items remaining: %d/%d)",
                     sortType, passCount, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems)
                 -- Final update
                 local frame = CreateFrame("Frame")
@@ -1537,7 +1537,7 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
 
             -- More sorting needed
             local remainingRatio = currentAnalysis.itemsOutOfPlace / math.max(1, currentAnalysis.totalItems)
-            addon:Print("%s Pass %d: %d moves, %d/%d items remaining (%.1f%%)",
+            addon:DebugSort("%s Pass %d: %d moves, %d/%d items remaining (%.1f%%)",
                 sortType, passCount, moveCount, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems, remainingRatio * 100)
 
 			-- PROGRESSIVE DELAY: Calculate delay based on remaining complexity
@@ -1545,7 +1545,7 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
 			local complexityDelay = math.min(currentAnalysis.itemsOutOfPlace * 0.06, 2.5) -- max 2.5 seconds
 			local totalDelay = baseDelay + complexityDelay
 
-			addon:Print("Waiting %.1f seconds before next pass...", totalDelay)
+			addon:DebugSort("Waiting %.1f seconds before next pass...", totalDelay)
 
 			-- Wait with progressive delay, then sort again
 			local frame = CreateFrame("Frame")
