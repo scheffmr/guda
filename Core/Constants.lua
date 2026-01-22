@@ -34,6 +34,31 @@ C.EQUIPMENT_SLOT_LAST = 19
 C.SOUL_SHARD_ID = 6265
 C.HEARTHSTONE_ID = 6948
 
+-- Profession tool item IDs that should NOT be marked as junk
+-- even though they are white quality equippable items
+C.PROFESSION_TOOL_IDS = {
+    [7005] = true,   -- Skinning Knife
+    [7812] = true,   -- Simple Skinning Knife
+    [2901] = true,   -- Mining Pick
+    [5956] = true,   -- Blacksmith Hammer
+    [6219] = true,   -- Arclight Spanner (Engineering)
+    [10498] = true,  -- Gyromatic Micro-Adjuster (Engineering)
+    [11590] = true,  -- Mechanical Repair Kit (Engineering)
+    [6218] = true,   -- Runed Copper Rod (Enchanting)
+    [6339] = true,   -- Runed Silver Rod (Enchanting)
+    [11130] = true,  -- Runed Golden Rod (Enchanting)
+    [11145] = true,  -- Runed Truesilver Rod (Enchanting)
+    [16207] = true,  -- Runed Arcanite Rod (Enchanting)
+    [55155] = true,  -- Jewelers Kit (Jewelcrafting)
+    [41328] = true,  -- Precision Jewelry Kit (Jewelcrafting)
+}
+
+-- Weapon subtypes that should NOT be marked as junk
+C.PROFESSION_TOOL_SUBTYPES = {
+    ["Fishing Pole"] = true,
+    ["Fishing Poles"] = true,
+}
+
 --=============================================================================
 -- Colors (r, g, b tables for easy unpacking)
 --=============================================================================

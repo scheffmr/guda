@@ -59,7 +59,9 @@ function Guda_CategorizeItem(itemData, bagID, slotID, categories, specialItems, 
        itemName == "Gyromatic Micro-Adjustor" or
        itemName == "Philosopher's Stone" or
        string.find(itemName, "Skinning Knife") or
-       itemName == "Blood Scythe" then
+       itemName == "Blood Scythe" or
+       string.find(itemName, "Jeweler") or
+       string.find(itemName, "Jewelry Kit") then
         table.insert(specialItems.Tools, {bagID = bagID, slotID = slotID, itemData = itemData})
         return
     end

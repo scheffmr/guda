@@ -601,8 +601,31 @@ function CategoryManager:EvaluateRule(rule, itemData, bagID, slotID, isOtherChar
         if not tag then return false end
         return tag == ruleValue
 
+    elseif ruleType == "isProfessionTool" then
+        -- Check if item is a profession tool by ID or subtype
+        local isProfessionTool = false
+
+        -- Check by item ID
+        if itemData.link then
+            local itemID = addon.Modules.Utils:ExtractItemID(itemData.link)
+            if itemID and addon.Constants.PROFESSION_TOOL_IDS and addon.Constants.PROFESSION_TOOL_IDS[itemID] then
+                isProfessionTool = true
+            end
+        end
+
+        -- Check by subtype (e.g., Fishing Pole)
+        if not isProfessionTool then
+            local itemSubclass = itemData.subclass or ""
+            if addon.Constants.PROFESSION_TOOL_SUBTYPES and addon.Constants.PROFESSION_TOOL_SUBTYPES[itemSubclass] then
+                isProfessionTool = true
+            end
+        end
+
+        return isProfessionTool == ruleValue
+
     elseif ruleType == "isJunk" then
         -- Junk items: gray items (quality 0) OR white equippable items (quality 1 + Weapon/Armor)
+        -- EXCLUDES: profession tools (skinning knife, mining pick, fishing poles, etc.)
         local quality = itemData.quality
         local isGray = false
         local isWhiteEquip = false
@@ -618,10 +641,32 @@ function CategoryManager:EvaluateRule(rule, itemData, bagID, slotID, isOtherChar
         -- Check for white equippable items (quality 1 + Weapon/Armor)
         if quality == 1 then
             local itemClass = itemData.class or ""
-            addon:Debug("isJunk check: quality=%s, class='%s', name='%s'", tostring(quality), tostring(itemClass), tostring(itemData.name))
+            local itemSubclass = itemData.subclass or ""
+            addon:Debug("isJunk check: quality=%s, class='%s', subclass='%s', name='%s'", tostring(quality), tostring(itemClass), tostring(itemSubclass), tostring(itemData.name))
+
             if itemClass == "Weapon" or itemClass == "Armor" then
-                isWhiteEquip = true
-                addon:Debug("isJunk: WHITE EQUIP DETECTED - %s", tostring(itemData.name))
+                -- Check if this is a profession tool (should NOT be junk)
+                local isProfessionTool = false
+
+                -- Check by item ID
+                if itemData.link then
+                    local itemID = addon.Modules.Utils:ExtractItemID(itemData.link)
+                    if itemID and addon.Constants.PROFESSION_TOOL_IDS and addon.Constants.PROFESSION_TOOL_IDS[itemID] then
+                        isProfessionTool = true
+                        addon:Debug("isJunk: PROFESSION TOOL (by ID) - %s", tostring(itemData.name))
+                    end
+                end
+
+                -- Check by subtype (e.g., Fishing Pole)
+                if not isProfessionTool and addon.Constants.PROFESSION_TOOL_SUBTYPES and addon.Constants.PROFESSION_TOOL_SUBTYPES[itemSubclass] then
+                    isProfessionTool = true
+                    addon:Debug("isJunk: PROFESSION TOOL (by subtype) - %s", tostring(itemData.name))
+                end
+
+                if not isProfessionTool then
+                    isWhiteEquip = true
+                    addon:Debug("isJunk: WHITE EQUIP DETECTED - %s", tostring(itemData.name))
+                end
             end
         end
 
@@ -740,6 +785,7 @@ function CategoryManager:GetRuleTypes()
         { id = "isBoE", name = "Bind on Equip", description = "Match items that bind when equipped" },
         { id = "isQuestItem", name = "Quest Item", description = "Match quest items" },
         { id = "isJunk", name = "Is Junk", description = "Match junk items (gray + white equippable)" },
+        { id = "isProfessionTool", name = "Profession Tool", description = "Match profession tools (skinning knife, mining pick, etc.)" },
         { id = "texturePattern", name = "Icon Pattern", description = "Match icon texture path" },
         { id = "itemID", name = "Item ID", description = "Match specific item IDs" },
         { id = "isSoulShard", name = "Soul Shard", description = "Match soul shards" },
