@@ -1924,13 +1924,12 @@ end
 
 -- Highlight all item slots belonging to a specific bank bag by dimming others
 function Guda_BankFrame_HighlightBagSlots(bagID)
-    -- Buttons are parented under per-bag parents, not directly under the item container
+    -- Use itemButtons tracking instead of GetChildren to avoid allocations
     local highlightCount, dimCount = 0, 0
 
     for _, bankBagParent in pairs(bankBagParents) do
-        if bankBagParent then
-            local children = { bankBagParent:GetChildren() }
-            for _, button in ipairs(children) do
+        if bankBagParent and bankBagParent.itemButtons then
+            for button in pairs(bankBagParent.itemButtons) do
                 if button and button:IsShown() and button.hasItem ~= nil and not button.isBagSlot then
                     if button.bagID == bagID then
                         button:SetAlpha(1.0)
@@ -1954,10 +1953,10 @@ function Guda_BankFrame_ClearHighlightedSlots()
     -- Restore alpha to search-filter state (pfUI style). If no search, full opacity.
     local searchActive = BankFrame and BankFrame.IsSearchActive and BankFrame:IsSearchActive()
 
+    -- Use itemButtons tracking instead of GetChildren to avoid allocations
     for _, bankBagParent in pairs(bankBagParents) do
-        if bankBagParent then
-            local children = { bankBagParent:GetChildren() }
-            for _, button in ipairs(children) do
+        if bankBagParent and bankBagParent.itemButtons then
+            for button in pairs(bankBagParent.itemButtons) do
                 if button and button:IsShown() and button.hasItem ~= nil and not button.isBagSlot then
                     if searchActive and BankFrame and BankFrame.PassesSearchFilter then
                         local matches = BankFrame:PassesSearchFilter(button.itemData)
