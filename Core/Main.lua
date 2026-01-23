@@ -172,6 +172,12 @@ function Main:SetupSlashCommands()
                 addon:Print("Category Cache: %d hits, %d misses (%.1f%% hit rate)",
                     stats.hits, stats.misses, stats.hitRate)
             end
+            -- Show tooltip cache stats
+            if addon.Modules.Utils and addon.Modules.Utils.GetTooltipCacheStats then
+                local stats = addon.Modules.Utils:GetTooltipCacheStats()
+                addon:Print("Tooltip Cache: %d hits, %d misses (%.1f%% hit rate)",
+                    stats.hits, stats.misses, stats.hitRate)
+            end
 
         elseif msg == "perfreset" then
             -- Reset performance statistics
@@ -182,6 +188,10 @@ function Main:SetupSlashCommands()
             -- Also clear category cache
             if addon.Modules.CategoryManager and addon.Modules.CategoryManager.ClearCache then
                 addon.Modules.CategoryManager:ClearCache()
+            end
+            -- Clear tooltip cache
+            if addon.Modules.Utils and addon.Modules.Utils.ClearTooltipCache then
+                addon.Modules.Utils:ClearTooltipCache()
             end
 
         elseif msg == "help" then

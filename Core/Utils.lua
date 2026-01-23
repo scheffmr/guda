@@ -6,6 +6,54 @@ local Utils = {}
 addon.Modules.Utils = Utils
 
 --=============================================================================
+-- Tooltip Scan Caching
+-- Caches results of expensive tooltip scanning operations
+--=============================================================================
+local tooltipCache = {
+    questItem = {},       -- IsQuestItem results
+    specialText = {},     -- HasSpecialTooltipText results
+    bindOnEquip = {},     -- IsBindOnEquip results
+    uniqueItem = {},      -- IsUniqueItem results
+    restoreTag = {},      -- GetConsumableRestoreTag results
+}
+local tooltipCacheStats = {
+    hits = 0,
+    misses = 0,
+}
+
+-- Clear all tooltip caches
+function Utils:ClearTooltipCache()
+    tooltipCache.questItem = {}
+    tooltipCache.specialText = {}
+    tooltipCache.bindOnEquip = {}
+    tooltipCache.uniqueItem = {}
+    tooltipCache.restoreTag = {}
+    tooltipCacheStats.hits = 0
+    tooltipCacheStats.misses = 0
+    addon:Debug("Tooltip cache cleared")
+end
+
+-- Get tooltip cache statistics
+function Utils:GetTooltipCacheStats()
+    local total = tooltipCacheStats.hits + tooltipCacheStats.misses
+    local hitRate = total > 0 and (tooltipCacheStats.hits / total * 100) or 0
+    return {
+        hits = tooltipCacheStats.hits,
+        misses = tooltipCacheStats.misses,
+        total = total,
+        hitRate = hitRate,
+    }
+end
+
+-- Generate cache key from item link
+local function GetTooltipCacheKey(itemLink)
+    if not itemLink then return nil end
+    -- Extract item ID from link for stable caching
+    local _, _, itemID = string.find(itemLink, "item:(%d+)")
+    return itemID
+end
+
+--=============================================================================
 -- Frame Budget System (Baganator-inspired performance optimization)
 -- Prevents any single operation from causing frame lag by spreading work
 -- across multiple frames when operations exceed a time budget.
@@ -534,6 +582,21 @@ function Utils:HasSpecialTooltipText(bagID, slotID, itemLink)
     bagID = tonumber(bagID)
     slotID = tonumber(slotID)
 
+    -- Get item link for cache key if not provided
+    local cacheLink = itemLink
+    if not cacheLink and bagID and slotID then
+        cacheLink = GetContainerItemLink(bagID, slotID)
+    end
+
+    -- Check cache first
+    local cacheKey = GetTooltipCacheKey(cacheLink)
+    if cacheKey and tooltipCache.specialText[cacheKey] ~= nil then
+        tooltipCacheStats.hits = tooltipCacheStats.hits + 1
+        local cached = tooltipCache.specialText[cacheKey]
+        return cached.hasSpecial, cached.textType
+    end
+    tooltipCacheStats.misses = tooltipCacheStats.misses + 1
+
     local tooltip = GetScanTooltip()
     if not tooltip then return false, nil end
 
@@ -554,7 +617,13 @@ function Utils:HasSpecialTooltipText(bagID, slotID, itemLink)
     end
 
     local numLines = tooltip:NumLines() or 0
-    if numLines == 0 then return false, nil end
+    if numLines == 0 then
+        -- Cache negative result
+        if cacheKey then
+            tooltipCache.specialText[cacheKey] = { hasSpecial = false, textType = nil }
+        end
+        return false, nil
+    end
 
     -- Scan tooltip lines for yellow or green text
     for i = 2, numLines do  -- Start from line 2 (skip item name on line 1)
@@ -572,6 +641,10 @@ function Utils:HasSpecialTooltipText(bagID, slotID, itemLink)
                     for _, pattern in ipairs(SPECIAL_TEXT_PATTERNS) do
                         if string.find(textLower, pattern) then
                             addon:Debug("HasSpecialTooltipText: YELLOW match '%s' in: %s", pattern, text)
+                            -- Cache positive result
+                            if cacheKey then
+                                tooltipCache.specialText[cacheKey] = { hasSpecial = true, textType = "yellow" }
+                            end
                             return true, "yellow"
                         end
                     end
@@ -581,12 +654,20 @@ function Utils:HasSpecialTooltipText(bagID, slotID, itemLink)
                 -- Green text is ALWAYS considered special (no pattern check needed)
                 if IsGreenColor(r, g, b) then
                     addon:Debug("HasSpecialTooltipText: Found GREEN text: %s (r=%.2f g=%.2f b=%.2f)", text, r, g, b)
+                    -- Cache positive result
+                    if cacheKey then
+                        tooltipCache.specialText[cacheKey] = { hasSpecial = true, textType = "green" }
+                    end
                     return true, "green"
                 end
 
                 -- Also check for "Use:" or "Equip:" regardless of color (some items may have different colors)
                 if string.find(textLower, "^use:") or string.find(textLower, "^equip:") then
                     addon:Debug("HasSpecialTooltipText: Found Use/Equip text: %s", text)
+                    -- Cache positive result
+                    if cacheKey then
+                        tooltipCache.specialText[cacheKey] = { hasSpecial = true, textType = "yellow" }
+                    end
                     return true, "yellow"
                 end
             end
@@ -601,12 +682,21 @@ function Utils:HasSpecialTooltipText(bagID, slotID, itemLink)
             if text and r and g and b then
                 if IsYellowColor(r, g, b) or IsGreenColor(r, g, b) then
                     addon:Debug("HasSpecialTooltipText: Found special text (right): %s", text)
-                    return true, IsYellowColor(r, g, b) and "yellow" or "green"
+                    local textType = IsYellowColor(r, g, b) and "yellow" or "green"
+                    -- Cache positive result
+                    if cacheKey then
+                        tooltipCache.specialText[cacheKey] = { hasSpecial = true, textType = textType }
+                    end
+                    return true, textType
                 end
             end
         end
     end
 
+    -- Cache negative result
+    if cacheKey then
+        tooltipCache.specialText[cacheKey] = { hasSpecial = false, textType = nil }
+    end
     return false, nil
 end
 
@@ -934,8 +1024,22 @@ local function ExtractHyperlink(itemLink)
 end
 
 -- Detect if a consumable has 'Use: Restores' or mentions 'while eating'/'while drinking'
-function Utils:GetConsumableRestoreTag(bagID, slotID)
+function Utils:GetConsumableRestoreTag(bagID, slotID, itemLink)
     if not bagID or not slotID then return nil end
+
+    -- Get item link for cache key if not provided
+    local cacheLink = itemLink or GetContainerItemLink(bagID, slotID)
+
+    -- Check cache first
+    local cacheKey = GetTooltipCacheKey(cacheLink)
+    if cacheKey and tooltipCache.restoreTag[cacheKey] ~= nil then
+        tooltipCacheStats.hits = tooltipCacheStats.hits + 1
+        local cached = tooltipCache.restoreTag[cacheKey]
+        -- Return nil if cached as false, otherwise return the tag
+        return cached ~= false and cached or nil
+    end
+    tooltipCacheStats.misses = tooltipCacheStats.misses + 1
+
     local tooltip = GetScanTooltip()
     tooltip:ClearLines()
     tooltip:SetBagItem(bagID, slotID)
@@ -958,6 +1062,12 @@ function Utils:GetConsumableRestoreTag(bagID, slotID)
             end
         end
     end
+
+    -- Cache the result (nil becomes false for cache check purposes)
+    if cacheKey then
+        tooltipCache.restoreTag[cacheKey] = tag or false
+    end
+
     return tag
 end
 
@@ -1017,17 +1127,28 @@ end
 -- For bank items, use itemLink since SetBagItem may not work for bank slots
 function Utils:IsBindOnEquip(bagID, slotID, itemLink)
     if not bagID or not slotID then return false end
-    
+
+    -- Get item link for cache key if not provided
+    local cacheLink = itemLink or GetContainerItemLink(bagID, slotID)
+
+    -- Check cache first
+    local cacheKey = GetTooltipCacheKey(cacheLink)
+    if cacheKey and tooltipCache.bindOnEquip[cacheKey] ~= nil then
+        tooltipCacheStats.hits = tooltipCacheStats.hits + 1
+        return tooltipCache.bindOnEquip[cacheKey]
+    end
+    tooltipCacheStats.misses = tooltipCacheStats.misses + 1
+
     local tooltip = GetScanTooltip()
     if not tooltip then return false end
-    
+
     tooltip:ClearLines()
-    
+
     -- Try SetBagItem first (works for regular bags and bank when open)
     tooltip:SetBagItem(bagID, slotID)
-    
+
     local numLines = tooltip:NumLines()
-    
+
     -- If no lines and we have itemLink, try SetHyperlink with itemString as fallback
     if (not numLines or numLines == 0) and itemLink then
         -- Extract itemString from link (format: item:12345:0:0:0...)
@@ -1038,19 +1159,25 @@ function Utils:IsBindOnEquip(bagID, slotID, itemLink)
             numLines = tooltip:NumLines()
         end
     end
-    
-    if not numLines or numLines == 0 then return false end
-    
+
+    if not numLines or numLines == 0 then
+        if cacheKey then tooltipCache.bindOnEquip[cacheKey] = false end
+        return false
+    end
+
     -- Check tooltip lines for "Binds when equipped"
     for i = 1, numLines do
         local line = getglobal("GudaBagScanTooltipTextLeft" .. i)
         if line then
             local text = line:GetText()
             if text and string.find(string.lower(text), "binds when equipped") then
+                if cacheKey then tooltipCache.bindOnEquip[cacheKey] = true end
                 return true
             end
         end
     end
+
+    if cacheKey then tooltipCache.bindOnEquip[cacheKey] = false end
     return false
 end
 
@@ -1058,8 +1185,22 @@ end
 function Utils:IsUniqueItem(bagID, slotID, itemLink)
     if not bagID or not slotID then return false end
 
+    -- Get item link for cache key if not provided
+    local cacheLink = itemLink or GetContainerItemLink(bagID, slotID)
+
+    -- Check cache first
+    local cacheKey = GetTooltipCacheKey(cacheLink)
+    if cacheKey and tooltipCache.uniqueItem[cacheKey] ~= nil then
+        tooltipCacheStats.hits = tooltipCacheStats.hits + 1
+        return tooltipCache.uniqueItem[cacheKey]
+    end
+    tooltipCacheStats.misses = tooltipCacheStats.misses + 1
+
     local tooltip = GetScanTooltip()
-    if not tooltip then return false end
+    if not tooltip then
+        if cacheKey then tooltipCache.uniqueItem[cacheKey] = false end
+        return false
+    end
 
     tooltip:ClearLines()
 
@@ -1078,7 +1219,10 @@ function Utils:IsUniqueItem(bagID, slotID, itemLink)
         end
     end
 
-    if not numLines or numLines == 0 then return false end
+    if not numLines or numLines == 0 then
+        if cacheKey then tooltipCache.uniqueItem[cacheKey] = false end
+        return false
+    end
 
     -- Check tooltip lines for "Unique" (but not "Unique-Equipped")
     for i = 1, numLines do
@@ -1089,11 +1233,14 @@ function Utils:IsUniqueItem(bagID, slotID, itemLink)
                 local textLower = string.lower(text)
                 -- Match "unique" but not "unique-equipped"
                 if textLower == "unique" or string.find(textLower, "^unique$") or string.find(textLower, "^unique%s") then
+                    if cacheKey then tooltipCache.uniqueItem[cacheKey] = true end
                     return true
                 end
             end
         end
     end
+
+    if cacheKey then tooltipCache.uniqueItem[cacheKey] = false end
     return false
 end
 
