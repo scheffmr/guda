@@ -52,24 +52,29 @@ function BagScanner:GetBagData()
     if cacheValid and bagCache then
         -- Process any dirty slots incrementally
         for bagID, slots in pairs(dirtySlots) do
-            if bagCache[bagID] then
-                for slotID in pairs(slots) do
-                    local oldData = bagCache[bagID].slots[slotID]
-                    local newData = self:ScanSlot(bagID, slotID)
-                    bagCache[bagID].slots[slotID] = newData
+            if bagID ~= nil and type(slots) == "table" then
+                if bagCache[bagID] then
+                    for slotID in pairs(slots) do
+                        -- Validate slotID is a valid number
+                        if type(slotID) == "number" and slotID >= 1 then
+                            local oldData = bagCache[bagID].slots[slotID]
+                            local newData = self:ScanSlot(bagID, slotID)
+                            bagCache[bagID].slots[slotID] = newData
 
-                    -- Update free slot count
-                    local wasEmpty = (oldData == nil)
-                    local isEmpty = (newData == nil)
-                    if wasEmpty and not isEmpty then
-                        bagCache[bagID].freeSlots = bagCache[bagID].freeSlots - 1
-                    elseif not wasEmpty and isEmpty then
-                        bagCache[bagID].freeSlots = bagCache[bagID].freeSlots + 1
+                            -- Update free slot count
+                            local wasEmpty = (oldData == nil)
+                            local isEmpty = (newData == nil)
+                            if wasEmpty and not isEmpty then
+                                bagCache[bagID].freeSlots = bagCache[bagID].freeSlots - 1
+                            elseif not wasEmpty and isEmpty then
+                                bagCache[bagID].freeSlots = bagCache[bagID].freeSlots + 1
+                            end
+                        end
                     end
+                else
+                    -- Bag not in cache, scan it
+                    bagCache[bagID] = self:ScanBag(bagID)
                 end
-            else
-                -- Bag not in cache, scan it
-                bagCache[bagID] = self:ScanBag(bagID)
             end
         end
         dirtySlots = {}
@@ -139,6 +144,11 @@ end
 
 -- Scan a single slot
 function BagScanner:ScanSlot(bagID, slot)
+    -- Validate parameters to prevent API errors
+    if bagID == nil or slot == nil or slot < 1 then
+        return nil
+    end
+
     local texture, itemCount, locked, quality, readable, lootable = GetContainerItemInfo(bagID, slot)
 
     if not texture then
