@@ -36,6 +36,7 @@ function QuestItemBar:CheckQuestItemUsable(bagID, slotID)
     local isQuestItem = false
     local isQuestStarter = false
     local isUsable = false
+    local isPermanentEnchant = false  -- Track enchanting scrolls/vellums
 
     for i = 1, tooltip:NumLines() do
         local line = getglobal("Guda_QuestBarScanTooltipTextLeft" .. i)
@@ -57,8 +58,18 @@ function QuestItemBar:CheckQuestItemUsable(bagID, slotID)
                 if string.find(tl, "use:") or string.find(tl, "begins a quest") or string.find(tl, "starts a quest") then
                     isUsable = true
                 end
+                -- Check for permanent enchant items (should NOT be quest items)
+                -- Just check for "permanently" anywhere (green text doesn't have "Use:" prefix)
+                if string.find(tl, "permanently") then
+                    isPermanentEnchant = true
+                end
             end
         end
+    end
+
+    -- Permanent enchant items are NOT quest items, even if categorized as Quest
+    if isPermanentEnchant then
+        return false, false, false
     end
 
     -- Fallback check for quest category if not detected from tooltip

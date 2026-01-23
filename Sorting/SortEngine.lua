@@ -130,19 +130,27 @@ end
 
 local function GetItemProperties(bagID, slotID, itemLink)
 	if not itemLink then return nil end
-	
+
 	-- Extract base item link for stable caching (item:ID:Enchant:...)
 	local _, _, baseLink = string.find(itemLink, "(item:%d+:%d+:%d+:%d+:%d+:%d+:%d+:%d+)")
 	local cacheKey = baseLink or itemLink
-	
+
 	if propertyCache[cacheKey] then
+		if addon.DEBUG then
+			addon:Print("GetItemProperties CACHE HIT for %s", cacheKey or "unknown")
+		end
 		return propertyCache[cacheKey]
+	end
+
+	if addon.DEBUG then
+		addon:Print("GetItemProperties CACHE MISS - scanning bagID=%s slotID=%s", tostring(bagID), tostring(slotID))
 	end
 
 	local props = {
 		isQuest = false,
 		isQuestStarter = false,
 		isQuestUsable = false,
+		isPermanentEnchant = false,  -- "Use: Permanently adds" items
 		isGray = false,
 		restoreTag = nil
 	}
@@ -182,13 +190,22 @@ local function GetItemProperties(bagID, slotID, itemLink)
 						end
 						
 						-- Usable check
-						if string.find(tl, "use:") or 
-						   string.find(tl, "right%-click") or 
-						   string.find(tl, "right click") or 
+						if string.find(tl, "use:") or
+						   string.find(tl, "right%-click") or
+						   string.find(tl, "right click") or
 						   string.find(tl, "click to") then
 							props.isQuestUsable = true
 						end
-						
+
+						-- Permanent enchant check (scrolls with "Permanently...")
+						-- Check for "permanently" anywhere in the line (green text doesn't have "Use:" prefix)
+						if string.find(tl, "permanently") then
+							props.isPermanentEnchant = true
+							if addon.DEBUG then
+								addon:Print("Detected permanent enchant: %s", tl)
+							end
+						end
+
 						-- Restore tag check (higher priority tags override lower ones)
 						if string.find(tl, "while eating") then
 							props.restoreTag = "eat"
@@ -210,6 +227,10 @@ local function GetItemProperties(bagID, slotID, itemLink)
 				end
 			end
 		end
+	end
+
+	if addon.DEBUG and props.isPermanentEnchant then
+		addon:Print("GetItemProperties RETURNING isPermanentEnchant=true for %s", cacheKey or "unknown")
 	end
 
 	propertyCache[cacheKey] = props
@@ -670,9 +691,29 @@ local function AddSortKeys(items)
 					item.equipSlotOrder = EQUIP_SLOT_ORDER[itemSubType] or 999
 				else
 					item.sortedClass = CATEGORY_ORDER[itemCategory] or 99
+
+					-- Check if item is a permanent enchant (should NOT be Quest)
+					local itemProps = GetItemProperties(item.bagID, item.slot, item.data.link)
+					local isPermanentEnchant = itemProps and itemProps.isPermanentEnchant or false
+
+					-- Debug: trace isPermanentEnchant value
+					if addon.DEBUG and (itemCategory == "Quest" or itemType == "Quest") then
+						addon:Print("GetItemProperties for %s: props=%s, isPermanentEnchant=%s",
+							item.itemName or "unknown",
+							itemProps and "exists" or "NIL",
+							itemProps and tostring(itemProps.isPermanentEnchant) or "N/A")
+					end
+
+					-- Permanent enchant items always sort BEFORE quest items (category 6)
+					-- regardless of their itemCategory or itemType
+					if isPermanentEnchant then
+						item.sortedClass = 6  -- Same as Tools, comes before Quest (7)
+						if addon.DEBUG then
+							addon:Print("PERMANENT ENCHANT: %s -> sortedClass=6", item.itemName or "unknown")
+						end
 					-- Heuristic: Detect items that should be in the Quest category (priority 7)
 					-- but aren't categorized as such by the game (e.g. some "Manual" items)
-					if item.sortedClass ~= (CATEGORY_ORDER["Quest"] or 7) then
+					elseif item.sortedClass ~= (CATEGORY_ORDER["Quest"] or 7) then
 						local nameLower = string.lower(item.itemName)
 						if string.find(nameLower, "manual") or string.find(nameLower, "quest") then
 							item.sortedClass = CATEGORY_ORDER["Quest"] or 7
@@ -687,6 +728,12 @@ local function AddSortKeys(items)
 						end
 					end
 					item.equipSlotOrder = 999
+
+					-- Debug: Show final sortedClass for quest-related items
+					if addon.DEBUG and (itemCategory == "Quest" or itemType == "Quest" or isPermanentEnchant) then
+						addon:Print("SORT CLASS: %s -> sortedClass=%d, isPermanentEnchant=%s",
+							item.itemName or "unknown", item.sortedClass, tostring(isPermanentEnchant))
+					end
 				end
 
 				-- Subclass ordering
@@ -704,19 +751,23 @@ local function AddSortKeys(items)
 				item.subclass = itemSubType or ""
 
 				-- Quest flags: mark quest items and detect starter/usable states
+				-- Note: permanent enchant items should NOT be marked as quest items
 				item.isQuest = false
 				item.isQuestStarter = false
 				item.isQuestUsable = false
+				item.isPermanentEnchant = isPermanentEnchant  -- Store for potential use in sorting
 				local nameLower = string.lower(item.itemName)
-				if itemCategory == "Quest" or string.find(nameLower, "quest") or item.data.class == "Quest" or IsQuestItemTooltip(item.bagID, item.slot) then
-					item.isQuest = true
-					if IsQuestItemStarter(item.bagID, item.slot) then item.isQuestStarter = true end
-					if IsQuestItemUsable(item.bagID, item.slot) then item.isQuestUsable = true end
-				elseif addon.IsQuestItemByID then
-					-- Check QuestItemsDB for faction-specific quest items
-					local playerFaction = UnitFactionGroup("player")
-					if addon:IsQuestItemByID(itemID, playerFaction) then
+				if not isPermanentEnchant then
+					if itemCategory == "Quest" or string.find(nameLower, "quest") or item.data.class == "Quest" or IsQuestItemTooltip(item.bagID, item.slot) then
 						item.isQuest = true
+						if IsQuestItemStarter(item.bagID, item.slot) then item.isQuestStarter = true end
+						if IsQuestItemUsable(item.bagID, item.slot) then item.isQuestUsable = true end
+					elseif addon.IsQuestItemByID then
+						-- Check QuestItemsDB for faction-specific quest items
+						local playerFaction = UnitFactionGroup("player")
+						if addon:IsQuestItemByID(itemID, playerFaction) then
+							item.isQuest = true
+						end
 					end
 				end
 
@@ -1292,6 +1343,9 @@ end
 
 -- Execute exactly ONE full sorting pass over bags (used by safety wrapper)
 function SortEngine:SortBagsPass()
+    -- Clear property cache to ensure fresh detection
+    propertyCache = {}
+
     local bagIDs = addon.Constants.BAGS
 
     -- Phase 1: Detect specialized bags
@@ -1346,6 +1400,9 @@ function SortEngine:SortBagsPass()
 end
 
 function SortEngine:SortBags()
+    -- Clear property cache to ensure fresh detection
+    propertyCache = {}
+
     local bagIDs = addon.Constants.BAGS
 
 	-- Phase 1: Detect specialized bags
@@ -1412,6 +1469,9 @@ end
 
 -- Execute exactly ONE full sorting pass over bank (used by safety wrapper)
 function SortEngine:SortBankPass()
+    -- Clear property cache to ensure fresh detection
+    propertyCache = {}
+
     if not addon.Modules.BankScanner:IsBankOpen() then
         addon:Print("Bank must be open to sort!")
         return 0
@@ -1468,6 +1528,9 @@ function SortEngine:SortBankPass()
 end
 
 function SortEngine:SortBank()
+    -- Clear property cache to ensure fresh detection
+    propertyCache = {}
+
 	if not addon.Modules.BankScanner:IsBankOpen() then
 		addon:Print("Bank must be open to sort!")
 		return 0

@@ -732,6 +732,34 @@ local function ScanTooltipForQuest(tooltip, tooltipName)
     return isQuestItem, isQuestStarter
 end
 
+-- Check if item has "Permanently..." text (enchanting scrolls/vellums)
+-- These should NOT be considered quest items even if they have Quest category
+local function IsPermanentEnchantItem(tooltip, tooltipName)
+    if not tooltip then
+        addon:Debug("IsPermanentEnchantItem: tooltip is nil")
+        return false
+    end
+    local numLines = tooltip:NumLines() or 0
+    addon:Debug("IsPermanentEnchantItem: scanning %d lines", numLines)
+    for i = 1, numLines do
+        local line = getglobal(tooltipName .. "TextLeft" .. i)
+        if line then
+            local text = line:GetText()
+            if text then
+                local tl = string.lower(text)
+                addon:Debug("IsPermanentEnchantItem line %d: %s", i, tl)
+                -- Just check for "permanently" anywhere (green text doesn't have "Use:" prefix)
+                if string.find(tl, "permanently") then
+                    addon:Debug("IsPermanentEnchantItem: FOUND permanently!")
+                    return true
+                end
+            end
+        end
+    end
+    addon:Debug("IsPermanentEnchantItem: NOT found")
+    return false
+end
+
 -- Consolidated quest item detection function
 -- Handles tooltip scanning, category checks, equipment filtering, and QuestItemsDB lookup
 -- Parameters:
@@ -772,8 +800,23 @@ function Utils:IsQuestItem(bagID, slotID, itemData, isOtherChar, isBank)
                          itemType == "Weapon" or itemType == "Armor")
     local isQuestCategory = (itemCategory == "Quest" or itemType == "Quest")
 
-    -- Priority 1: If explicitly categorized as Quest, it's a quest item
+    -- Priority 1: If explicitly categorized as Quest, check if it's actually an enchant item first
     if isQuestCategory then
+        addon:Debug("IsQuestItem: Quest category detected, checking for permanent enchant...")
+        -- Check tooltip for "Permanently" (enchanting scrolls should not be quest items)
+        if not isOtherChar and bagID and slotID then
+            local tooltip = GetScanTooltip()
+            tooltip:ClearLines()
+            tooltip:SetBagItem(bagID, slotID)
+            local isPermanent = IsPermanentEnchantItem(tooltip, "GudaBagScanTooltip")
+            addon:Debug("IsQuestItem: IsPermanentEnchantItem returned %s", tostring(isPermanent))
+            if isPermanent then
+                return false, false  -- Not a quest item, it's an enchant scroll
+            end
+        else
+            addon:Debug("IsQuestItem: Skipping permanent enchant check (otherChar=%s, bagID=%s, slotID=%s)",
+                tostring(isOtherChar), tostring(bagID), tostring(slotID))
+        end
         return true, false
     end
 
