@@ -136,6 +136,12 @@ function Guda_BagFrame_OnHide(self)
         addon.Modules.Utils:ClearWorkQueue()
     end
 
+    -- Cancel any pending throttled updates
+    local throttleFrame = getglobal("Guda_BagUpdateThrottle")
+    if throttleFrame then
+        throttleFrame:Hide()
+    end
+
 	-- Clean up all buttons when frame is hidden (safe since we're not displaying)
 	for _, bagParent in pairs(bagParents) do
 		if bagParent then
@@ -2503,32 +2509,81 @@ function BagFrame:Initialize()
 		end
 	end)
 
- -- Debounce state for BagFrame updates (prevents lag from rapid events)
- local bagUpdatePending = false
- local lockUpdatePending = false
+ --=====================================================
+ -- Efficient Update Throttling System
+ -- Uses a single reusable frame and true debouncing
+ -- (resets timer when new events come in)
+ --=====================================================
+ local updateThrottle = {
+     frame = nil,
+     pending = false,
+     delay = 0.1,        -- Default delay (100ms)
+     elapsed = 0,
+     minDelay = 0.05,    -- Minimum delay (50ms) for responsive feel
+     maxDelay = 0.3,     -- Maximum delay (300ms) during heavy operations
+ }
 
- -- Helper to schedule a debounced BagFrame update
- local function ScheduleBagFrameUpdate(delay)
-     if bagUpdatePending then return end
-     bagUpdatePending = true
-     local debounceFrame = CreateFrame("Frame")
-     debounceFrame.elapsed = 0
-     debounceFrame:SetScript("OnUpdate", function()
-         this.elapsed = this.elapsed + arg1
-         if this.elapsed >= delay then
-             this:SetScript("OnUpdate", nil)
-             bagUpdatePending = false
-             if not currentViewChar and Guda_BagFrame:IsShown() then
-                 BagFrame:Update()
+ -- Initialize the throttle frame (created once, reused)
+ local function GetThrottleFrame()
+     if not updateThrottle.frame then
+         updateThrottle.frame = CreateFrame("Frame", "Guda_BagUpdateThrottle", UIParent)
+         updateThrottle.frame:Hide()
+         updateThrottle.frame:SetScript("OnUpdate", function()
+             updateThrottle.elapsed = updateThrottle.elapsed + arg1
+             if updateThrottle.elapsed >= updateThrottle.delay then
+                 updateThrottle.frame:Hide()
+                 updateThrottle.pending = false
+                 updateThrottle.elapsed = 0
+                 -- Only update if frame is shown and viewing current character
+                 if not currentViewChar and Guda_BagFrame and Guda_BagFrame:IsShown() then
+                     BagFrame:Update()
+                 end
              end
-         end
-     end)
+         end)
+     end
+     return updateThrottle.frame
+ end
+
+ -- Schedule a debounced BagFrame update
+ -- If already pending, resets the timer (true debounce behavior)
+ local function ScheduleBagFrameUpdate(delay)
+     delay = delay or updateThrottle.minDelay
+
+     -- Clamp delay to reasonable bounds
+     if delay < updateThrottle.minDelay then
+         delay = updateThrottle.minDelay
+     elseif delay > updateThrottle.maxDelay then
+         delay = updateThrottle.maxDelay
+     end
+
+     -- Use longer delay if sorting is in progress
+     if addon.Modules.SortEngine and addon.Modules.SortEngine.sortingInProgress then
+         delay = updateThrottle.maxDelay
+     end
+
+     updateThrottle.delay = delay
+     updateThrottle.elapsed = 0  -- Reset timer (true debounce)
+
+     if not updateThrottle.pending then
+         updateThrottle.pending = true
+         GetThrottleFrame():Show()
+     end
+ end
+
+ -- Cancel any pending update (useful when frame is hidden)
+ local function CancelPendingUpdate()
+     if updateThrottle.frame then
+         updateThrottle.frame:Hide()
+     end
+     updateThrottle.pending = false
+     updateThrottle.elapsed = 0
  end
 
  -- Update on bag changes (debounced to prevent lag on rapid bag updates)
  addon.Modules.Events:OnBagUpdate(function()
      if currentViewChar then return end
      if not Guda_BagFrame:IsShown() then return end
+     -- Use standard delay, will auto-extend if sorting is in progress
      ScheduleBagFrameUpdate(0.1)
  end, "BagFrame")
 
@@ -2550,21 +2605,8 @@ function BagFrame:Initialize()
 	addon.Modules.Events:Register("ITEM_LOCK_CHANGED", function()
 		if currentViewChar then return end
 		if not Guda_BagFrame:IsShown() then return end
-		-- Use slightly longer debounce for lock changes (they fire rapidly during drags)
-		if lockUpdatePending then return end
-		lockUpdatePending = true
-		local debounceFrame = CreateFrame("Frame")
-		debounceFrame.elapsed = 0
-		debounceFrame:SetScript("OnUpdate", function()
-			this.elapsed = this.elapsed + arg1
-			if this.elapsed >= 0.15 then
-				this:SetScript("OnUpdate", nil)
-				lockUpdatePending = false
-				if Guda_BagFrame:IsShown() then
-					BagFrame:Update()
-				end
-			end
-		end)
+		-- Use slightly longer delay for lock changes (they fire rapidly during drags)
+		ScheduleBagFrameUpdate(0.15)
 	end, "BagFrame")
 
 	-- Auto-open bag frame when mail is opened

@@ -1625,6 +1625,7 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
             if noProgressPasses >= 5 then
                 addon:DebugSort("%s sort stopped due to no progress after %d passes (items remaining: %d/%d)",
                     sortType, passCount, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems)
+
                 -- Final update
                 local frame = CreateFrame("Frame")
                 local startTime = GetTime()

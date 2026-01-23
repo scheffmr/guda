@@ -89,6 +89,12 @@ function Guda_BankFrame_OnHide(self)
     -- Clear any pending update
     bankPendingUpdate = false
 
+    -- Cancel any pending throttled updates
+    local throttleFrame = getglobal("Guda_BankUpdateThrottle")
+    if throttleFrame then
+        throttleFrame:Hide()
+    end
+
     -- Close the actual Blizzard bank too
     local blizzardBankFrame = getglobal("BankFrame")
     if blizzardBankFrame and blizzardBankFrame:IsShown() then
@@ -1543,29 +1549,61 @@ function BankFrame:Initialize()
         end
     end, "BankFrameUI")
 
-    -- Update on bag changes while bank is open
-    -- Debounce state for BankFrame updates (prevents lag from rapid events)
-    local bankUpdatePending = false
-    local bankLockUpdatePending = false
+    --=====================================================
+    -- Efficient Update Throttling System for BankFrame
+    -- Uses a single reusable frame and true debouncing
+    --=====================================================
+    local bankThrottle = {
+        frame = nil,
+        pending = false,
+        delay = 0.1,
+        elapsed = 0,
+        minDelay = 0.05,
+        maxDelay = 0.3,
+    }
 
-    -- Helper to schedule a debounced BankFrame update
+    local function GetBankThrottleFrame()
+        if not bankThrottle.frame then
+            bankThrottle.frame = CreateFrame("Frame", "Guda_BankUpdateThrottle", UIParent)
+            bankThrottle.frame:Hide()
+            bankThrottle.frame:SetScript("OnUpdate", function()
+                bankThrottle.elapsed = bankThrottle.elapsed + arg1
+                if bankThrottle.elapsed >= bankThrottle.delay then
+                    bankThrottle.frame:Hide()
+                    bankThrottle.pending = false
+                    bankThrottle.elapsed = 0
+                    if addon.Modules.BankScanner:IsBankOpen() and not currentViewChar then
+                        addon.Modules.BankFrame:Update()
+                    end
+                end
+            end)
+        end
+        return bankThrottle.frame
+    end
+
     local function ScheduleBankFrameUpdate(delay)
-        if bankUpdatePending then return end
         if not addon.Modules.BankScanner:IsBankOpen() then return end
         if currentViewChar then return end
-        bankUpdatePending = true
-        local debounceFrame = CreateFrame("Frame")
-        debounceFrame.elapsed = 0
-        debounceFrame:SetScript("OnUpdate", function()
-            this.elapsed = this.elapsed + arg1
-            if this.elapsed >= delay then
-                this:SetScript("OnUpdate", nil)
-                bankUpdatePending = false
-                if addon.Modules.BankScanner:IsBankOpen() and not currentViewChar then
-                    addon.Modules.BankFrame:Update()
-                end
-            end
-        end)
+
+        delay = delay or bankThrottle.minDelay
+        if delay < bankThrottle.minDelay then
+            delay = bankThrottle.minDelay
+        elseif delay > bankThrottle.maxDelay then
+            delay = bankThrottle.maxDelay
+        end
+
+        -- Use longer delay if sorting is in progress
+        if addon.Modules.SortEngine and addon.Modules.SortEngine.sortingInProgress then
+            delay = bankThrottle.maxDelay
+        end
+
+        bankThrottle.delay = delay
+        bankThrottle.elapsed = 0  -- Reset timer (true debounce)
+
+        if not bankThrottle.pending then
+            bankThrottle.pending = true
+            GetBankThrottleFrame():Show()
+        end
     end
 
     addon.Modules.Events:OnBagUpdate(function()
@@ -1578,20 +1616,8 @@ function BankFrame:Initialize()
     addon.Modules.Events:Register("ITEM_LOCK_CHANGED", function()
         if not addon.Modules.BankScanner:IsBankOpen() then return end
         if currentViewChar then return end
-        if bankLockUpdatePending then return end
-        bankLockUpdatePending = true
-        local debounceFrame = CreateFrame("Frame")
-        debounceFrame.elapsed = 0
-        debounceFrame:SetScript("OnUpdate", function()
-            this.elapsed = this.elapsed + arg1
-            if this.elapsed >= 0.15 then
-                this:SetScript("OnUpdate", nil)
-                bankLockUpdatePending = false
-                if addon.Modules.BankScanner:IsBankOpen() then
-                    addon.Modules.BankFrame:Update()
-                end
-            end
-        end)
+        -- Use slightly longer delay for lock changes
+        ScheduleBankFrameUpdate(0.15)
     end, "BankFrameUI")
 
     -- Register bank-specific update events (pfUI style, debounced)
