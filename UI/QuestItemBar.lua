@@ -668,4 +668,60 @@ function QuestItemBar:Initialize()
     addon:Debug("QuestItemBar initialized")
 end
 
+-- Debug function to diagnose QuestItemBar issues
+-- Usage: /script Guda.Modules.QuestItemBar:Debug()
+function QuestItemBar:Debug()
+    addon:Print("=== QuestItemBar Debug ===")
+
+    -- Check setting
+    local showQuestBar = addon.Modules.DB:GetSetting("showQuestBar")
+    addon:Print("showQuestBar setting: " .. tostring(showQuestBar))
+
+    -- Check frame
+    local frame = Guda_QuestItemBar
+    addon:Print("Frame exists: " .. tostring(frame ~= nil))
+    if frame then
+        addon:Print("Frame shown: " .. tostring(frame:IsShown()))
+    end
+
+    -- Scan all bags for potential quest items
+    addon:Print("--- Scanning bags ---")
+    local foundCount = 0
+    for bagID = 0, 4 do
+        local numSlots = GetContainerNumSlots(bagID)
+        for slotID = 1, numSlots do
+            local texture, count = GetContainerItemInfo(bagID, slotID)
+            if texture then
+                local itemLink = GetContainerItemLink(bagID, slotID)
+                local itemData = addon.Modules.BagScanner:ScanSlot(bagID, slotID)
+
+                if itemData then
+                    local props = addon.Modules.ItemDetection:GetItemProperties(itemData, bagID, slotID)
+
+                    -- Show items that are quest-related OR have Quest class
+                    if props.isQuestItem or props.isQuestUsable or (itemData.class and itemData.class == "Quest") then
+                        foundCount = foundCount + 1
+                        addon:Print(string.format("[%d:%d] %s", bagID, slotID, itemData.name or "Unknown"))
+                        addon:Print(string.format("  class=%s, isQuest=%s, isUsable=%s, isStarter=%s",
+                            tostring(itemData.class),
+                            tostring(props.isQuestItem),
+                            tostring(props.isQuestUsable),
+                            tostring(props.isQuestStarter)))
+
+                        -- Check if it would show in bar
+                        local wouldShow = props.isQuestItem and props.isQuestUsable and not props.isQuestStarter
+                        addon:Print("  Would show in bar: " .. tostring(wouldShow))
+                    end
+                end
+            end
+        end
+    end
+
+    if foundCount == 0 then
+        addon:Print("No quest-related items found in bags")
+    end
+
+    addon:Print("=== End Debug ===")
+end
+
 QuestItemBar.isLoaded = true

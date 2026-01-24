@@ -291,12 +291,38 @@ local function DetectQuestUsable(lines)
         -- Check for yellow "Use:" text
         if line.r and line.g and line.b then
             local isYellow = (line.r > 0.9 and line.g > 0.75 and line.b < 0.2)
-            if isYellow and string.find(line.leftLower, "use:") then
+            if isYellow and line.leftLower and string.find(line.leftLower, "use:") then
+                return true
+            end
+            -- Also check for green "Use:" text (some quest items have green use text)
+            local isGreen = (line.r < 0.3 and line.g > 0.9 and line.b < 0.3)
+            if isGreen and line.leftLower and string.find(line.leftLower, "use:") then
                 return true
             end
         end
     end
     return false
+end
+
+-- Debug function to dump tooltip lines for an item
+-- Usage: /script Guda.Modules.ItemDetection:DebugTooltip(bagID, slotID)
+function ItemDetection:DebugTooltip(bagID, slotID)
+    local itemLink = GetContainerItemLink(bagID, slotID)
+    if not itemLink then
+        addon:Print("No item at " .. bagID .. ":" .. slotID)
+        return
+    end
+
+    addon:Print("=== Tooltip Debug for " .. bagID .. ":" .. slotID .. " ===")
+    local lines = ScanTooltipLines(bagID, slotID, itemLink)
+    addon:Print("Total lines: " .. table.getn(lines))
+
+    for i, line in ipairs(lines) do
+        local text = line.left or "(no text)"
+        local r, g, b = line.r or 0, line.g or 0, line.b or 0
+        addon:Print(string.format("[%d] r=%.2f g=%.2f b=%.2f: %s", i, r, g, b, text))
+    end
+    addon:Print("=== End Tooltip Debug ===")
 end
 
 -- Durability pattern for filtering out broken item red text
