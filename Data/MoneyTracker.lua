@@ -36,17 +36,11 @@ function MoneyTracker:Initialize()
         MoneyTracker:Update()
     end, "MoneyTracker")
 
-    -- Initial update and save on login
+    -- Initial update and save on login (uses pooled timer)
     addon.Modules.Events:OnPlayerLogin(function()
-        local frame = CreateFrame("Frame")
-        local elapsed = 0
-        frame:SetScript("OnUpdate", function()
-            elapsed = elapsed + arg1
-            if elapsed >= 1 then
-                frame:SetScript("OnUpdate", nil)
-                MoneyTracker:Update()
-                addon:Debug("Initial money saved")
-            end
+        Guda_ScheduleTimer(1, function()
+            MoneyTracker:Update()
+            addon:Debug("Initial money saved")
         end)
     end, "MoneyTracker")
 end

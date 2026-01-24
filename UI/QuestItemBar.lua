@@ -649,16 +649,10 @@ function QuestItemBar:Initialize()
     addon.Modules.Events:Register("BAG_UPDATE", function()
         if bagUpdatePending then return end
         bagUpdatePending = true
-        -- Debounce: wait 0.15 seconds before updating to batch rapid events
-        local debounceFrame = CreateFrame("Frame")
-        debounceFrame.elapsed = 0
-        debounceFrame:SetScript("OnUpdate", function()
-            this.elapsed = this.elapsed + arg1
-            if this.elapsed >= 0.15 then
-                this:SetScript("OnUpdate", nil)
-                bagUpdatePending = false
-                QuestItemBar:Update()
-            end
+        -- Debounce: wait 0.15 seconds before updating (uses pooled timer)
+        Guda_ScheduleTimer(0.15, function()
+            bagUpdatePending = false
+            QuestItemBar:Update()
         end)
     end, "QuestItemBar")
 

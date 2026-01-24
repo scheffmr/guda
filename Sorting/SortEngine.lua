@@ -12,8 +12,9 @@ SortEngine.sortingInProgress = false
 -- Performance: Max items to move per cycle
 -- Baganator uses 5 for manual transfers, but sorting needs more for smooth operation
 local MAX_MOVES_PER_CYCLE = 20
--- Bank uses fewer moves per cycle to avoid lock conflicts (bank ops are slower)
-local MAX_BANK_MOVES_PER_CYCLE = 15
+-- Bank needs more moves per cycle due to larger capacity (240 vs 160 slots)
+-- But not too many to avoid server-side lock conflicts
+local MAX_BANK_MOVES_PER_CYCLE = 25
 
 -- Current sort context (set by ExecuteSort, used by ApplySort)
 local currentSortType = "bags"
@@ -577,10 +578,12 @@ local function ConsolidateStacks(bagIDs)
 			if maxStack > 1 then
 			-- Sort stacks: higher priority bags first, then larger stacks
 				table.sort(group.stacks, function(a, b)
-					if a.priority ~= b.priority then
-						return a.priority > b.priority
+					if not a then return false end
+					if not b then return true end
+					if (a.priority or 0) ~= (b.priority or 0) then
+						return (a.priority or 0) > (b.priority or 0)
 					end
-					return a.count > b.count
+					return (a.count or 0) > (b.count or 0)
 				end)
 
 				-- Greedy consolidation: fill stacks from left to right
@@ -825,9 +828,13 @@ local function SortItems(items)
 	end
 
 	table.sort(items, function(a, b)
+		-- Guard against nil entries
+		if not a then return false end
+		if not b then return true end
+
 	-- 1. Priority items first (Hearthstone, etc.)
-		if a.priority ~= b.priority then
-			return a.priority < b.priority
+		if (a.priority or 0) ~= (b.priority or 0) then
+			return (a.priority or 0) < (b.priority or 0)
 		end
 
 		-- 2. Equippable items always come before non-equippable items
@@ -1017,10 +1024,12 @@ local function BuildTargetPositions(bagIDs, itemCount)
 	-- Only sort if we have more than one element
 	if table.getn(sortedBags) > 1 then
 		table.sort(sortedBags, function(a, b)
-			if a.priority ~= b.priority then
-				return a.priority > b.priority
+			if not a then return false end
+			if not b then return true end
+			if (a.priority or 0) ~= (b.priority or 0) then
+				return (a.priority or 0) > (b.priority or 0)
 			end
-			return a.bagID < b.bagID
+			return (a.bagID or 0) < (b.bagID or 0)
 		end)
 	end
 
@@ -1117,22 +1126,35 @@ local function ApplySort(bagIDs, items, targetPositions)
 	end
 
 	-- Execute swaps with occupied slots (if we haven't hit the limit)
+	-- Be conservative with swaps - they can cause chain reactions
+	-- Limit swaps to half of max moves to leave room for next pass corrections
+	local maxSwaps = math.floor(maxMoves / 2)
+	local swapCount = 0
+
 	for _, move in ipairs(swapOccupied) do
-		-- Limit moves per cycle
-		if moveCount >= maxMoves then
+		-- Limit total moves and swaps separately
+		if moveCount >= maxMoves or swapCount >= maxSwaps then
 			break
 		end
 
-		local _, _, sourceLocked = GetContainerItemInfo(move.sourceBag, move.sourceSlot)
-		local _, _, targetLocked = GetContainerItemInfo(move.targetBag, move.targetSlot)
-
-		if not sourceLocked and not targetLocked then
-			PickupContainerItem(move.sourceBag, move.sourceSlot)
-			PickupContainerItem(move.targetBag, move.targetSlot)
-			ClearCursor()
-			moveCount = moveCount + 1
+		-- Verify source item is still there (previous swaps may have moved it)
+		local sourceLink = GetContainerItemLink(move.sourceBag, move.sourceSlot)
+		if not sourceLink then
+			-- Source slot is now empty, skip this swap (will be handled next pass)
+			addon:DebugSort("Swap skipped: source slot now empty (%d:%d)", move.sourceBag, move.sourceSlot)
 		else
-			lockedCount = lockedCount + 1
+			local _, _, sourceLocked = GetContainerItemInfo(move.sourceBag, move.sourceSlot)
+			local _, _, targetLocked = GetContainerItemInfo(move.targetBag, move.targetSlot)
+
+			if not sourceLocked and not targetLocked then
+				PickupContainerItem(move.sourceBag, move.sourceSlot)
+				PickupContainerItem(move.targetBag, move.targetSlot)
+				ClearCursor()
+				moveCount = moveCount + 1
+				swapCount = swapCount + 1
+			else
+				lockedCount = lockedCount + 1
+			end
 		end
 	end
 
@@ -1175,10 +1197,12 @@ local function BuildGreyTailPositions(bagIDs, greyCount)
 	-- Only sort if we have more than one element
 	if table.getn(ordered) > 1 then
 		table.sort(ordered, function(a, b)
-			if a.priority ~= b.priority then
-				return a.priority < b.priority -- lowest first
+			if not a then return false end
+			if not b then return true end
+			if (a.priority or 0) ~= (b.priority or 0) then
+				return (a.priority or 0) < (b.priority or 0) -- lowest first
 			end
-			return a.bagID > b.bagID -- higher bagID later (treated as further to the right)
+			return (a.bagID or 0) > (b.bagID or 0) -- higher bagID later (treated as further to the right)
 		end)
 	end
 
@@ -1200,15 +1224,17 @@ local function BuildGreyTailPositions(bagIDs, greyCount)
 	-- Ascending order: Priority DESC, BagID ASC, Slot ASC (matching BuildTargetPositions)
 	if table.getn(tailSlots) > 1 then
 		table.sort(tailSlots, function(a, b)
+			if not a then return false end
+			if not b then return true end
 			local aPrio = tonumber(addon.Modules.Utils:GetContainerPriority(a.bag)) or 0
 			local bPrio = tonumber(addon.Modules.Utils:GetContainerPriority(b.bag)) or 0
 			if aPrio ~= bPrio then
 				return aPrio > bPrio
 			end
-			if a.bag ~= b.bag then
-				return a.bag < b.bag
+			if (a.bag or 0) ~= (b.bag or 0) then
+				return (a.bag or 0) < (b.bag or 0)
 			end
-			return a.slot < b.slot
+			return (a.slot or 0) < (b.slot or 0)
 		end)
 	end
 
@@ -1504,11 +1530,9 @@ function SortEngine:SortBags()
      end
  end
 
-	-- Clear caches after sorting to ensure fresh detection on next UI update
+	-- Clear bag position cache after sorting to ensure fresh slot data on next UI update
+	-- NOTE: Don't clear ItemDetection cache - item properties don't change when items move
 	addon.Modules.BagScanner:ClearCache()
-	if addon.Modules.ItemDetection then
-		addon.Modules.ItemDetection:ClearCache()
-	end
 
 	-- Return total moves made
 	return routeCount + consolidateCount + specializedMoves + regularMoves
@@ -1641,11 +1665,9 @@ function SortEngine:SortBank()
      end
  end
 
-	-- Clear caches after sorting to ensure fresh detection on next UI update
+	-- Clear bag position cache after sorting to ensure fresh slot data on next UI update
+	-- NOTE: Don't clear ItemDetection cache - item properties don't change when items move
 	addon.Modules.BankScanner:ClearCache()
-	if addon.Modules.ItemDetection then
-		addon.Modules.ItemDetection:ClearCache()
-	end
 
 	-- Return total moves made
 	return routeCount + consolidateCount + specializedMoves + regularMoves
@@ -1708,52 +1730,36 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
             -- Sorting is complete!
             addon:DebugSort("%s sort complete! (%d passes, %d total moves)", sortType, passCount, totalMoves)
 
-			-- Final update (cache clearing happens after delay)
-			local frame = CreateFrame("Frame")
-			local startTime = GetTime()
-			frame:SetScript("OnUpdate", function()
-				if GetTime() - startTime >= 0.3 then
-					frame:SetScript("OnUpdate", nil)
-					SortEngine.sortingInProgress = false
-					SortEngine:UpdateSortButtonState(false)
-					currentSortType = "bags"  -- Reset sort context
-					-- Clear caches after sorting to ensure fresh detection
-					if sortType == "bank" then
-						addon.Modules.BankScanner:ClearCache()
-					else
-						addon.Modules.BagScanner:ClearCache()
-					end
-					if addon.Modules.ItemDetection then
-						addon.Modules.ItemDetection:ClearCache()
-					end
-					updateFrame()
+			-- Final update (cache clearing happens after delay, uses pooled timer)
+			Guda_ScheduleTimer(0.3, function()
+				SortEngine.sortingInProgress = false
+				SortEngine:UpdateSortButtonState(false)
+				currentSortType = "bags"  -- Reset sort context
+				-- Clear bag position cache - item properties don't change on move
+				if sortType == "bank" then
+					addon.Modules.BankScanner:ClearCache()
+				else
+					addon.Modules.BagScanner:ClearCache()
 				end
+				updateFrame()
 			end)
   elseif passCount >= safetyLimit then
             -- Hit safety limit but not fully sorted
             addon:DebugSort("%s sort stopped at safety limit! (%d/%d items still need sorting after %d passes)",
                 sortType, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems, passCount)
 
-			-- Final update (cache clearing happens after delay)
-			local frame = CreateFrame("Frame")
-			local startTime = GetTime()
-			frame:SetScript("OnUpdate", function()
-				if GetTime() - startTime >= 0.3 then
-					frame:SetScript("OnUpdate", nil)
-					SortEngine.sortingInProgress = false
-					SortEngine:UpdateSortButtonState(false)
-					currentSortType = "bags"  -- Reset sort context
-					-- Clear caches after sorting to ensure fresh detection
-					if sortType == "bank" then
-						addon.Modules.BankScanner:ClearCache()
-					else
-						addon.Modules.BagScanner:ClearCache()
-					end
-					if addon.Modules.ItemDetection then
-						addon.Modules.ItemDetection:ClearCache()
-					end
-					updateFrame()
+			-- Final update (cache clearing happens after delay, uses pooled timer)
+			Guda_ScheduleTimer(0.3, function()
+				SortEngine.sortingInProgress = false
+				SortEngine:UpdateSortButtonState(false)
+				currentSortType = "bags"  -- Reset sort context
+				-- Clear bag position cache - item properties don't change on move
+				if sortType == "bank" then
+					addon.Modules.BankScanner:ClearCache()
+				else
+					addon.Modules.BagScanner:ClearCache()
 				end
+				updateFrame()
 			end)
   else
             -- No progress guard: stop if we make no moves repeatedly
@@ -1767,26 +1773,18 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
                 addon:DebugSort("%s sort stopped due to no progress after %d passes (items remaining: %d/%d)",
                     sortType, passCount, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems)
 
-                -- Final update (cache clearing happens after delay)
-                local frame = CreateFrame("Frame")
-                local startTime = GetTime()
-                frame:SetScript("OnUpdate", function()
-                    if GetTime() - startTime >= 0.3 then
-                        frame:SetScript("OnUpdate", nil)
-                        SortEngine.sortingInProgress = false
-                        SortEngine:UpdateSortButtonState(false)
-                        currentSortType = "bags"  -- Reset sort context
-                        -- Clear caches after sorting to ensure fresh detection
-                        if sortType == "bank" then
-                            addon.Modules.BankScanner:ClearCache()
-                        else
-                            addon.Modules.BagScanner:ClearCache()
-                        end
-                        if addon.Modules.ItemDetection then
-                            addon.Modules.ItemDetection:ClearCache()
-                        end
-                        updateFrame()
+                -- Final update (cache clearing happens after delay, uses pooled timer)
+                Guda_ScheduleTimer(0.3, function()
+                    SortEngine.sortingInProgress = false
+                    SortEngine:UpdateSortButtonState(false)
+                    currentSortType = "bags"  -- Reset sort context
+                    -- Clear bag position cache - item properties don't change on move
+                    if sortType == "bank" then
+                        addon.Modules.BankScanner:ClearCache()
+                    else
+                        addon.Modules.BagScanner:ClearCache()
                     end
+                    updateFrame()
                 end)
                 return
             end
@@ -1805,15 +1803,8 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
 
 			addon:DebugSort("Waiting %.1f seconds before next pass...", totalDelay)
 
-			-- Wait with progressive delay, then sort again
-			local frame = CreateFrame("Frame")
-			local startTime = GetTime()
-			frame:SetScript("OnUpdate", function()
-				if GetTime() - startTime >= totalDelay then
-					frame:SetScript("OnUpdate", nil)
-					DoSortPass()  -- Recursive call for next pass
-				end
-			end)
+			-- Wait with progressive delay, then sort again (uses pooled timer)
+			Guda_ScheduleTimer(totalDelay, DoSortPass)
 		end
 	end
 

@@ -15,11 +15,37 @@ local detectionCache = {}
 local cacheHits = 0
 local cacheMisses = 0
 
--- Clear the detection cache
+-- Clear the entire detection cache (use sparingly - only for major events)
+-- For simple item moves, use InvalidateItem() or don't invalidate at all
 function ItemDetection:ClearCache()
     detectionCache = {}
     cacheHits = 0
     cacheMisses = 0
+end
+
+-- Invalidate a specific item from cache (by itemLink)
+-- Use this when a specific item's properties might have changed
+function ItemDetection:InvalidateItem(itemLink)
+    if itemLink then
+        detectionCache[itemLink] = nil
+    end
+end
+
+-- Invalidate multiple items from cache
+-- Use this for batch operations
+function ItemDetection:InvalidateItems(itemLinks)
+    if itemLinks then
+        for _, link in ipairs(itemLinks) do
+            if link then
+                detectionCache[link] = nil
+            end
+        end
+    end
+end
+
+-- Check if we have cached data for an item (useful for debugging)
+function ItemDetection:IsCached(itemLink)
+    return itemLink and detectionCache[itemLink] ~= nil
 end
 
 -- Get cache statistics
@@ -91,10 +117,16 @@ local function ScanTooltipLines(bagID, slotID, itemLink)
         local leftText = leftLine and leftLine:GetText() or ""
         local rightText = rightLine and rightLine:GetText() or ""
 
-        -- Get text colors (for detecting yellow/green text)
+        -- Get left text colors (for detecting yellow/green/red text)
         local lr, lg, lb, la = 1, 1, 1, 1
         if leftLine and leftLine.GetTextColor then
             lr, lg, lb, la = leftLine:GetTextColor()
+        end
+
+        -- Get right text colors (for detecting red requirements)
+        local rr, rg, rb, ra = 1, 1, 1, 1
+        if rightLine and rightLine.GetTextColor then
+            rr, rg, rb, ra = rightLine:GetTextColor()
         end
 
         table.insert(lines, {
@@ -103,6 +135,7 @@ local function ScanTooltipLines(bagID, slotID, itemLink)
             leftLower = leftText and string.lower(leftText) or "",
             rightLower = rightText and string.lower(rightText) or "",
             r = lr, g = lg, b = lb,
+            rightR = rr, rightG = rg, rightB = rb,
         })
     end
 
@@ -255,12 +288,63 @@ local function DetectQuestUsable(lines)
     return false
 end
 
+-- Durability pattern for filtering out broken item red text
+local durabilityPattern = DURABILITY_TEMPLATE and string.gsub(DURABILITY_TEMPLATE, "%%d", "%%d+") or nil
+
+-- Check if text color is red (unusable requirement)
+local function IsRedColor(r, g, b)
+    if not r or not g or not b then return false end
+    -- RED_FONT_COLOR is typically (1.0, 0.1, 0.1)
+    local dr = math.abs(r - 1.0)
+    local dg = math.abs(g - 0.125)
+    local db = math.abs(b - 0.125)
+    return (dr < 0.15 and dg < 0.15 and db < 0.15)
+end
+
+-- Check if item is unusable (has red text indicating unmet requirements)
+-- Excludes durability lines (broken items show red durability)
+local function DetectUnusable(lines)
+    for _, line in ipairs(lines) do
+        if line.r and line.g and line.b then
+            -- Check for red text (requirements not met)
+            local isRed = IsRedColor(line.r, line.g, line.b) or
+                          (line.r > 0.85 and line.g < 0.3 and line.b < 0.3)
+
+            if isRed then
+                local text = line.left or ""
+                -- Ignore durability lines (broken items)
+                if durabilityPattern and string.find(text, durabilityPattern) then
+                    -- skip durability
+                else
+                    return true
+                end
+            end
+        end
+
+        -- Also check right column (some requirements appear there)
+        if line.rightR and line.rightG and line.rightB then
+            local isRed = IsRedColor(line.rightR, line.rightG, line.rightB) or
+                          (line.rightR > 0.85 and line.rightG < 0.3 and line.rightB < 0.3)
+
+            if isRed then
+                local text = line.right or ""
+                if durabilityPattern and string.find(text, durabilityPattern) then
+                    -- skip durability
+                else
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
 --=====================================================
 -- Public API - Cached Detection
 --=====================================================
 
 -- Get all item properties at once (cached)
--- Returns: { isQuestItem, isQuestStarter, isQuestUsable, isJunk, isPermanentEnchant }
+-- Returns: { isQuestItem, isQuestStarter, isQuestUsable, isJunk, isPermanentEnchant, isUnusable }
 function ItemDetection:GetItemProperties(itemData, bagID, slotID)
     if not itemData then
         return {
@@ -269,6 +353,7 @@ function ItemDetection:GetItemProperties(itemData, bagID, slotID)
             isQuestUsable = false,
             isJunk = false,
             isPermanentEnchant = false,
+            isUnusable = false,
         }
     end
 
@@ -296,6 +381,7 @@ function ItemDetection:GetItemProperties(itemData, bagID, slotID)
     local isQuestItem, isQuestStarter = DetectQuestItem(lines, itemData)
     local isQuestUsable = DetectQuestUsable(lines)
     local isJunk = DetectJunk(lines, itemData)
+    local isUnusable = DetectUnusable(lines)
 
     -- Debug: log junk detection for gray items
     if addon.DEBUG then
@@ -320,6 +406,7 @@ function ItemDetection:GetItemProperties(itemData, bagID, slotID)
         isQuestUsable = isQuestUsable,
         isJunk = isJunk,
         isPermanentEnchant = isPermanentEnchant,
+        isUnusable = isUnusable,
     }
 
     -- Cache result
@@ -354,6 +441,11 @@ end
 function ItemDetection:IsPermanentEnchant(itemData, bagID, slotID)
     local props = self:GetItemProperties(itemData, bagID, slotID)
     return props.isPermanentEnchant
+end
+
+function ItemDetection:IsUnusable(itemData, bagID, slotID)
+    local props = self:GetItemProperties(itemData, bagID, slotID)
+    return props.isUnusable
 end
 
 --=====================================================
