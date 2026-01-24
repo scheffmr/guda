@@ -1722,52 +1722,42 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
             -- Sorting is complete!
             addon:DebugSort("%s sort complete! (%d passes, %d total moves)", sortType, passCount, totalMoves)
 
-			-- Final update (cache clearing happens after delay)
-			local frame = CreateFrame("Frame")
-			local startTime = GetTime()
-			frame:SetScript("OnUpdate", function()
-				if GetTime() - startTime >= 0.3 then
-					frame:SetScript("OnUpdate", nil)
-					SortEngine.sortingInProgress = false
-					SortEngine:UpdateSortButtonState(false)
-					currentSortType = "bags"  -- Reset sort context
-					-- Clear caches after sorting to ensure fresh detection
-					if sortType == "bank" then
-						addon.Modules.BankScanner:ClearCache()
-					else
-						addon.Modules.BagScanner:ClearCache()
-					end
-					if addon.Modules.ItemDetection then
-						addon.Modules.ItemDetection:ClearCache()
-					end
-					updateFrame()
+			-- Final update (cache clearing happens after delay, uses pooled timer)
+			Guda_ScheduleTimer(0.3, function()
+				SortEngine.sortingInProgress = false
+				SortEngine:UpdateSortButtonState(false)
+				currentSortType = "bags"  -- Reset sort context
+				-- Clear caches after sorting to ensure fresh detection
+				if sortType == "bank" then
+					addon.Modules.BankScanner:ClearCache()
+				else
+					addon.Modules.BagScanner:ClearCache()
 				end
+				if addon.Modules.ItemDetection then
+					addon.Modules.ItemDetection:ClearCache()
+				end
+				updateFrame()
 			end)
   elseif passCount >= safetyLimit then
             -- Hit safety limit but not fully sorted
             addon:DebugSort("%s sort stopped at safety limit! (%d/%d items still need sorting after %d passes)",
                 sortType, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems, passCount)
 
-			-- Final update (cache clearing happens after delay)
-			local frame = CreateFrame("Frame")
-			local startTime = GetTime()
-			frame:SetScript("OnUpdate", function()
-				if GetTime() - startTime >= 0.3 then
-					frame:SetScript("OnUpdate", nil)
-					SortEngine.sortingInProgress = false
-					SortEngine:UpdateSortButtonState(false)
-					currentSortType = "bags"  -- Reset sort context
-					-- Clear caches after sorting to ensure fresh detection
-					if sortType == "bank" then
-						addon.Modules.BankScanner:ClearCache()
-					else
-						addon.Modules.BagScanner:ClearCache()
-					end
-					if addon.Modules.ItemDetection then
-						addon.Modules.ItemDetection:ClearCache()
-					end
-					updateFrame()
+			-- Final update (cache clearing happens after delay, uses pooled timer)
+			Guda_ScheduleTimer(0.3, function()
+				SortEngine.sortingInProgress = false
+				SortEngine:UpdateSortButtonState(false)
+				currentSortType = "bags"  -- Reset sort context
+				-- Clear caches after sorting to ensure fresh detection
+				if sortType == "bank" then
+					addon.Modules.BankScanner:ClearCache()
+				else
+					addon.Modules.BagScanner:ClearCache()
 				end
+				if addon.Modules.ItemDetection then
+					addon.Modules.ItemDetection:ClearCache()
+				end
+				updateFrame()
 			end)
   else
             -- No progress guard: stop if we make no moves repeatedly
@@ -1781,26 +1771,21 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
                 addon:DebugSort("%s sort stopped due to no progress after %d passes (items remaining: %d/%d)",
                     sortType, passCount, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems)
 
-                -- Final update (cache clearing happens after delay)
-                local frame = CreateFrame("Frame")
-                local startTime = GetTime()
-                frame:SetScript("OnUpdate", function()
-                    if GetTime() - startTime >= 0.3 then
-                        frame:SetScript("OnUpdate", nil)
-                        SortEngine.sortingInProgress = false
-                        SortEngine:UpdateSortButtonState(false)
-                        currentSortType = "bags"  -- Reset sort context
-                        -- Clear caches after sorting to ensure fresh detection
-                        if sortType == "bank" then
-                            addon.Modules.BankScanner:ClearCache()
-                        else
-                            addon.Modules.BagScanner:ClearCache()
-                        end
-                        if addon.Modules.ItemDetection then
-                            addon.Modules.ItemDetection:ClearCache()
-                        end
-                        updateFrame()
+                -- Final update (cache clearing happens after delay, uses pooled timer)
+                Guda_ScheduleTimer(0.3, function()
+                    SortEngine.sortingInProgress = false
+                    SortEngine:UpdateSortButtonState(false)
+                    currentSortType = "bags"  -- Reset sort context
+                    -- Clear caches after sorting to ensure fresh detection
+                    if sortType == "bank" then
+                        addon.Modules.BankScanner:ClearCache()
+                    else
+                        addon.Modules.BagScanner:ClearCache()
                     end
+                    if addon.Modules.ItemDetection then
+                        addon.Modules.ItemDetection:ClearCache()
+                    end
+                    updateFrame()
                 end)
                 return
             end
@@ -1819,15 +1804,8 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
 
 			addon:DebugSort("Waiting %.1f seconds before next pass...", totalDelay)
 
-			-- Wait with progressive delay, then sort again
-			local frame = CreateFrame("Frame")
-			local startTime = GetTime()
-			frame:SetScript("OnUpdate", function()
-				if GetTime() - startTime >= totalDelay then
-					frame:SetScript("OnUpdate", nil)
-					DoSortPass()  -- Recursive call for next pass
-				end
-			end)
+			-- Wait with progressive delay, then sort again (uses pooled timer)
+			Guda_ScheduleTimer(totalDelay, DoSortPass)
 		end
 	end
 

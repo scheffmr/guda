@@ -615,16 +615,10 @@ function Tooltip:Initialize()
 		if event == "BAG_UPDATE" then
 			if cacheClearPending then return end
 			cacheClearPending = true
-			-- Debounce: batch rapid BAG_UPDATE events
-			local debounceFrame = CreateFrame("Frame")
-			debounceFrame.elapsed = 0
-			debounceFrame:SetScript("OnUpdate", function()
-				this.elapsed = this.elapsed + arg1
-				if this.elapsed >= 0.2 then
-					this:SetScript("OnUpdate", nil)
-					cacheClearPending = false
-					Tooltip:ClearCache()
-				end
+			-- Debounce: batch rapid BAG_UPDATE events (uses pooled timer)
+			Guda_ScheduleTimer(0.2, function()
+				cacheClearPending = false
+				Tooltip:ClearCache()
 			end)
 		end
 	end)

@@ -91,16 +91,10 @@ function EquipmentScanner:Initialize()
 		playerLoggedIn = true
 		addon:Print("Scanning equipped items...")
 
-		-- Delay scan to ensure character is fully loaded
-		local frame = CreateFrame("Frame")
-		local elapsed = 0
-		frame:SetScript("OnUpdate", function()
-			elapsed = elapsed + arg1
-			if elapsed >= 2.0 then
-				frame:SetScript("OnUpdate", nil)
-				EquipmentScanner:SaveToDatabase()
-				addon:Print("Equipped items scanned and saved!")
-			end
+		-- Delay scan to ensure character is fully loaded (uses pooled timer)
+		Guda_ScheduleTimer(2.0, function()
+			EquipmentScanner:SaveToDatabase()
+			addon:Print("Equipped items scanned and saved!")
 		end)
 	end, "EquipmentScanner")
 

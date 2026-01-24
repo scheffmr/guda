@@ -6,6 +6,39 @@ local Utils = {}
 addon.Modules.Utils = Utils
 
 --=============================================================================
+-- Timer Frame Pool (prevents memory leaks from temporary timers)
+-- Global function so all modules can use it
+--=============================================================================
+local timerPool = {}
+local TIMER_POOL_MAX = 10  -- Limit pool size to prevent unbounded growth
+
+function Guda_ScheduleTimer(delay, callback)
+    -- Try to get a frame from the pool
+    local frame = table.remove(timerPool)
+    if not frame then
+        frame = CreateFrame("Frame")
+    end
+
+    frame.elapsed = 0
+    frame.delay = delay
+    frame.callback = callback
+    frame:SetScript("OnUpdate", function()
+        this.elapsed = this.elapsed + arg1
+        if this.elapsed >= this.delay then
+            this:SetScript("OnUpdate", nil)
+            this:Hide()
+            -- Return frame to pool if not full
+            if table.getn(timerPool) < TIMER_POOL_MAX then
+                table.insert(timerPool, this)
+            end
+            -- Execute callback
+            this.callback()
+        end
+    end)
+    frame:Show()
+end
+
+--=============================================================================
 -- Tooltip Scan Caching
 -- Caches results of expensive tooltip scanning operations
 --=============================================================================

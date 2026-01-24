@@ -1849,20 +1849,8 @@ function Guda_BagFrame_MergeStacks()
 	ProcessNextMove()
 end
 
--- Simple timer helper
-function Guda_ScheduleTimer(delay, callback)
-	local frame = CreateFrame("Frame")
-	frame.elapsed = 0
-	frame.delay = delay
-	frame.callback = callback
-	frame:SetScript("OnUpdate", function()
-		this.elapsed = this.elapsed + arg1
-		if this.elapsed >= this.delay then
-			this:SetScript("OnUpdate", nil)
-			this.callback()
-		end
-	end)
-end
+-- NOTE: Guda_ScheduleTimer is defined in Core/Utils.lua (loaded earlier)
+-- to ensure it's available for all modules that need timers
 
 -- Hook bag container buttons to open Guda Bag View
 local function HookBagContainers()

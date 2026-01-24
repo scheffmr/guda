@@ -188,15 +188,9 @@ function BankScanner:Initialize()
         BankScanner:ClearCache()  -- Clear cache on open
         addon:Debug("Bank opened")
 
-        -- Delay scan to ensure bank is fully loaded
-        local frame = CreateFrame("Frame")
-        local elapsed = 0
-        frame:SetScript("OnUpdate", function()
-            elapsed = elapsed + arg1
-            if elapsed >= 0.5 then
-                frame:SetScript("OnUpdate", nil)
-                BankScanner:SaveToDatabase()
-            end
+        -- Delay scan to ensure bank is fully loaded (uses pooled timer)
+        Guda_ScheduleTimer(0.5, function()
+            BankScanner:SaveToDatabase()
         end)
     end, "BankScanner")
 

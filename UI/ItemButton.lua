@@ -110,91 +110,10 @@ local function Guda_GetUnusableColor()
     return 0.9, 0.2, 0.2, 1.0
 end
 
--- Build durability match pattern based on the client template
-local durabilityPattern
-if DURABILITY_TEMPLATE then
-    -- e.g. "Durability %d / %d" -> "Durability (.+)"
-    durabilityPattern = string.gsub(DURABILITY_TEMPLATE, "%%[^%s]+", "(.+)")
-end
-
--- Tiny helper to compare font color to Blizzard's RED_FONT_COLOR
-local function IsRedColor(r, g, b)
-    if not r or not g or not b or not RED_FONT_COLOR then return false end
-    local dr = math.abs(r - RED_FONT_COLOR.r)
-    local dg = math.abs(g - RED_FONT_COLOR.g)
-    local db = math.abs(b - RED_FONT_COLOR.b)
-    return (dr < 0.08 and dg < 0.08 and db < 0.08)
-end
-
--- Scan tooltip for red text that is NOT a durability line
--- Uses shared tooltip from Utils module
-local function IsItemUnusable(bagID, slotID, isBank)
-    bagID = tonumber(bagID)
-    slotID = tonumber(slotID)
-    if not bagID or not slotID then return false end
-
-    -- Get shared tooltip from Utils
-    local scanTooltip, tooltipName = addon.Modules.Utils:GetScanTooltip()
-
-    -- Some clients require SetOwner before every SetBagItem/SetInventoryItem to populate lines
-    if scanTooltip.SetOwner then
-        scanTooltip:SetOwner(UIParent or WorldFrame, "ANCHOR_NONE")
-    end
-    scanTooltip:ClearLines()
-
-    if isBank and bagID == -1 then
-        -- Bank frame item buttons map slots 1.. to inventory slots 40.. (39 + slot)
-        if scanTooltip.SetInventoryItem then
-            scanTooltip:SetInventoryItem("player", 39 + slotID)
-        else
-            -- Fallback to bag scan if API missing
-            scanTooltip:SetBagItem(bagID, slotID)
-        end
-    else
-        scanTooltip:SetBagItem(bagID, slotID)
-    end
-
-    if scanTooltip.Show then scanTooltip:Show() end
-
-    local num = scanTooltip:NumLines() or 0
-    for i = 1, num do
-        -- Scan LEFT column
-        local left = getglobal(tooltipName .. "TextLeft" .. i)
-        if left and left:IsShown() then
-            local text = left:GetText()
-            local r, g, b = left:GetTextColor()
-            -- Be tolerant with red detection in case client colors differ slightly
-            local isRed = IsRedColor(r, g, b) or (r and g and b and r > 0.85 and g < 0.3 and b < 0.3)
-            if text and isRed then
-                -- Ignore red durability (broken) lines
-                if durabilityPattern and string.find(text, durabilityPattern, 1) then
-                    -- skip durability
-                else
-                    if scanTooltip.Hide then scanTooltip:Hide() end
-                    return true
-                end
-            end
-        end
-
-        -- Scan RIGHT column as well (required level etc can appear here on some clients)
-        local right = getglobal(tooltipName .. "TextRight" .. i)
-        if right and right:IsShown() then
-            local text = right:GetText()
-            local r, g, b = right:GetTextColor()
-            local isRed = IsRedColor(r, g, b) or (r and g and b and r > 0.85 and g < 0.3 and b < 0.3)
-            if text and isRed then
-                if durabilityPattern and string.find(text, durabilityPattern, 1) then
-                    -- skip durability
-                else
-                    if scanTooltip.Hide then scanTooltip:Hide() end
-                    return true
-                end
-            end
-        end
-    end
-
-    return false
-end
+-- NOTE: IsItemUnusable detection is now handled by ItemDetection:IsUnusable()
+-- which uses cached tooltip scanning to avoid duplicate scans per item.
+-- The old IsItemUnusable, IsRedColor, and durabilityPattern have been removed
+-- to prevent redundant tooltip scanning - all detection is now centralized.
 
 -- Apply/remove red tint on item texture for unusable items
 local function Guda_ItemButton_UpdateUsableTint(self)
@@ -225,7 +144,11 @@ local function Guda_ItemButton_UpdateUsableTint(self)
 		return
 	end
 
-	local unusable = IsItemUnusable(self.bagID, self.slotID, self.isBank)
+	-- Use cached detection from ItemDetection module (avoids duplicate tooltip scans)
+	local unusable = false
+	if self.itemData and addon.Modules.ItemDetection then
+		unusable = addon.Modules.ItemDetection:IsUnusable(self.itemData, self.bagID, self.slotID)
+	end
 
 	-- Ensure overlay exists (created in OnLoad, but be defensive)
 	if not self.unusableOverlay then

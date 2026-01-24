@@ -1611,40 +1611,28 @@ function BankFrame:Initialize()
 
     -- Update when bank is opened
     addon.Modules.Events:OnBankOpen(function()
-        -- Delay showing custom bank to let TransmogUI finish processing
-        local frame = CreateFrame("Frame")
-        local elapsed = 0
-        frame:SetScript("OnUpdate", function()
-            elapsed = elapsed + arg1
-            if elapsed >= 0.2 then
-                frame:SetScript("OnUpdate", nil)
+        -- Delay showing custom bank to let TransmogUI finish processing (uses pooled timer)
+        Guda_ScheduleTimer(0.2, function()
+            -- Show current character's bank in interactive mode
+            currentViewChar = nil
 
-                -- Show current character's bank in interactive mode
-                currentViewChar = nil
+            -- Do not auto-hide BagFrame when opening BankFrame
+            -- Users may want both frames visible simultaneously; layout issues, if any,
+            -- should be addressed via positioning rather than auto-hiding.
 
-                -- Do not auto-hide BagFrame when opening BankFrame
-                -- Previously, we hid BagFrame to prevent button overlap:
-                -- local bagFrame = getglobal("Guda_BagFrame")
-                -- if bagFrame and bagFrame:IsShown() then
-                --     bagFrame:Hide()
-                -- end
-                -- Users may want both frames visible simultaneously; layout issues, if any,
-                -- should be addressed via positioning rather than auto-hiding.
-
-                -- Show and update custom bank frame
-                local customBankFrame = getglobal("Guda_BankFrame")
-                if customBankFrame then
-                    customBankFrame:Show()
-                end
-
-                -- Force disable pfUI banks if enabled (pfUI uses pfBank for its bank frame)
-                if pfUI and pfUI.bag and pfUI.bag.left and pfUI.bag.left.Hide then
-                    pfUI.bag.left:Hide()
-                end
-
-                addon.Modules.BankFrame:EnsureBagButtonsInitialized()
-                addon.Modules.BankFrame:Update()
+            -- Show and update custom bank frame
+            local customBankFrame = getglobal("Guda_BankFrame")
+            if customBankFrame then
+                customBankFrame:Show()
             end
+
+            -- Force disable pfUI banks if enabled (pfUI uses pfBank for its bank frame)
+            if pfUI and pfUI.bag and pfUI.bag.left and pfUI.bag.left.Hide then
+                pfUI.bag.left:Hide()
+            end
+
+            addon.Modules.BankFrame:EnsureBagButtonsInitialized()
+            addon.Modules.BankFrame:Update()
         end)
     end, "BankFrameUI")
 
