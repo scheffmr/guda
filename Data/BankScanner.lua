@@ -45,7 +45,18 @@ end
 
 -- Get cached bank data, or scan if cache is invalid
 function BankScanner:GetBankData()
-    if not bankOpen then
+    -- Check if bank is accessible (either officially open OR we can access bank slots)
+    local bankAccessible = bankOpen
+    if not bankAccessible then
+        -- Try to access main bank - if it has slots, bank is actually accessible
+        local testSlots = GetContainerNumSlots(-1)
+        if testSlots and testSlots > 0 then
+            bankAccessible = true
+            addon:DebugCategory("GetBankData: bankOpen=false but bank accessible (%d slots)", testSlots)
+        end
+    end
+
+    if not bankAccessible then
         return {}
     end
 
@@ -118,8 +129,17 @@ end
 
 -- Scan all bank bags and return data (full scan)
 function BankScanner:ScanBank()
-    if not bankOpen then
-        addon:Debug("Cannot scan bank - not open")
+    -- Check if bank is accessible (officially open OR slots are readable)
+    local bankAccessible = bankOpen
+    if not bankAccessible then
+        local testSlots = GetContainerNumSlots(-1)
+        if testSlots and testSlots > 0 then
+            bankAccessible = true
+        end
+    end
+
+    if not bankAccessible then
+        addon:Debug("Cannot scan bank - not accessible")
         return {}
     end
 

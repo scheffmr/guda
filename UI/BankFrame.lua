@@ -15,8 +15,53 @@ local isReadOnlyMode = false  -- Track if viewing saved bank (read-only) or live
 local hiddenBankBags = {} -- Track which bank bags are hidden (bagID -> true/false)
 local bankBagParents = {} -- Parent frames per bank bag (same approach as BagFrame)
 local bankSlotToButton = {} -- Fast O(1) lookup: bankSlotToButton[bagID][slotID] = button
+-- Track empty slots that should show as placeholders in Category View
+-- Format: recentlyEmptiedSlots[bagID][slotID] = { category = "CategoryName", timestamp = time }
+local recentlyEmptiedSlots = {}
 -- Global click catcher for clearing bank search focus
 local bankClickCatcher = nil
+
+-- Clear recently emptied slots (called when view is reset or frame hidden)
+function BankFrame:ClearRecentlyEmptiedSlots()
+    for k in pairs(recentlyEmptiedSlots) do
+        recentlyEmptiedSlots[k] = nil
+    end
+end
+
+-- Mark a slot as recently emptied (preserves its category and sort info for placeholder display)
+function BankFrame:MarkSlotAsEmptied(bagID, slotID, category, itemData)
+    if not recentlyEmptiedSlots[bagID] then
+        recentlyEmptiedSlots[bagID] = {}
+    end
+    -- Store sort-relevant properties from the original item to maintain position
+    recentlyEmptiedSlots[bagID][slotID] = {
+        category = category or "Miscellaneous",
+        timestamp = GetTime(),
+        -- Preserve sort properties from original item
+        quality = itemData and itemData.quality or 0,
+        name = itemData and itemData.name or "",
+        iLevel = itemData and itemData.iLevel or 0,
+    }
+    addon:DebugCategory("Marked slot %d:%d as emptied (category: %s)", bagID, slotID, category or "Miscellaneous")
+end
+
+-- Check if a slot is marked as recently emptied
+function BankFrame:IsSlotRecentlyEmptied(bagID, slotID)
+    return recentlyEmptiedSlots[bagID] and recentlyEmptiedSlots[bagID][slotID]
+end
+
+-- Get the category of a recently emptied slot
+function BankFrame:GetEmptiedSlotCategory(bagID, slotID)
+    local info = recentlyEmptiedSlots[bagID] and recentlyEmptiedSlots[bagID][slotID]
+    return info and info.category or nil
+end
+
+-- Remove a slot from recently emptied (when item is placed back)
+function BankFrame:UnmarkSlotAsEmptied(bagID, slotID)
+    if recentlyEmptiedSlots[bagID] then
+        recentlyEmptiedSlots[bagID][slotID] = nil
+    end
+end
 
 -- OnLoad
 function Guda_BankFrame_OnLoad(self)
@@ -95,6 +140,9 @@ function Guda_BankFrame_OnHide(self)
     if throttleFrame then
         throttleFrame:Hide()
     end
+
+    -- Clear recently emptied slots tracking (reset placeholders)
+    BankFrame:ClearRecentlyEmptiedSlots()
 
     -- Close the actual Blizzard bank too
     local blizzardBankFrame = getglobal("BankFrame")
@@ -189,6 +237,23 @@ function BankFrame:UpdateSingleSlot(bagID, slotID, passedButton)
     end
 
     addon:DebugCategory("UpdateSingleSlot: bag=%d slot=%d hasItem=%s -> updating button", bagID, slotID, itemLink and "yes" or "no")
+
+    -- Track when slot becomes empty in Category View (for placeholder display)
+    local viewType = addon.Modules.DB:GetSetting("bankViewType") or "single"
+    if viewType == "category" then
+        local hadItem = targetButton.itemData and targetButton.itemData.link
+        local hasItem = itemData and itemData.link
+
+        if hadItem and not hasItem then
+            -- Item was removed - mark slot as emptied with its category and sort info
+            local category = targetButton.itemCategory or "Miscellaneous"
+            local oldItemData = targetButton.itemData  -- Get the old item data before it's cleared
+            self:MarkSlotAsEmptied(bagID, slotID, category, oldItemData)
+        elseif hasItem and not hadItem then
+            -- Item was added - remove from emptied tracking
+            self:UnmarkSlotAsEmptied(bagID, slotID)
+        end
+    end
 
     -- Update the button
     local matchesFilter = self:PassesSearchFilter(itemData)
@@ -416,15 +481,25 @@ function BankFrame:Update()
         getglobal("Guda_BankFrame_Title"):SetText(currentViewChar .. "'s Bank")
     else
         -- Viewing current character's bank
-        if bankIsOpen then
-            -- Bank is actually open - use cached data for performance
+        -- Use live data if bank is officially open OR if we can access bank data
+        -- (handles edge cases where IsBankOpen returns false but bank is still accessible)
+        local useLiveData = bankIsOpen
+        if not useLiveData then
+            -- Try to get live data anyway - if bank bags are accessible, use live data
+            local testSlots = GetContainerNumSlots(-1)  -- Main bank
+            if testSlots and testSlots > 0 then
+                useLiveData = true
+                addon:DebugCategory("Update: IsBankOpen=false but bank accessible, using live data")
+            end
+        end
+
+        local playerName = addon.Modules.DB:GetPlayerFullName()
+        if useLiveData then
+            -- Bank is accessible - use live data
             bankData = addon.Modules.BankScanner:GetBankData()
-            -- Use current character's name for the title
-            local playerName = addon.Modules.DB:GetPlayerFullName()
             getglobal("Guda_BankFrame_Title"):SetText(playerName .. "'s Bank")
         else
-            -- Bank is closed - use saved data (read-only mode)
-            local playerName = addon.Modules.DB:GetPlayerFullName()
+            -- Bank is truly closed - use saved data (read-only mode)
             bankData = addon.Modules.DB:GetCharacterBank(playerName)
             getglobal("Guda_BankFrame_Title"):SetText(playerName .. "'s Bank")
         end
@@ -443,6 +518,20 @@ function BankFrame:Update()
     end
 
     if viewType == "category" then
+        -- Debug: check bankData before display
+        local bagCount = 0
+        local totalItems = 0
+        for bagID, bag in pairs(bankData or {}) do
+            bagCount = bagCount + 1
+            if bag and bag.slots then
+                for slotID, item in pairs(bag.slots) do
+                    if item then
+                        totalItems = totalItems + 1
+                    end
+                end
+            end
+        end
+        addon:DebugCategory("Update: bankData has %d bags, %d total items", bagCount, totalItems)
         self:DisplayItemsByCategory(bankData, isOtherChar, charName)
         -- Show sort button with merge icon/tooltip for category view
         local sortBtn = getglobal("Guda_BankFrame_SortButton")
@@ -504,13 +593,59 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
     local categoryList = Guda_CategoryList
 
     -- Categorize all items using centralized function
+    local totalItemsCategorized = 0
     for _, bagID in ipairs(addon.Constants.BANK_BAGS) do
         if not hiddenBankBags[bagID] then
             local bag = bankData[bagID]
             if bag and bag.slots then
+                local bagItemCount = 0
                 for slotID, itemData in pairs(bag.slots) do
                     if itemData then
                         Guda_CategorizeItem(itemData, bagID, slotID, categories, specialItems, isOtherChar)
+                        bagItemCount = bagItemCount + 1
+                        totalItemsCategorized = totalItemsCategorized + 1
+                    end
+                end
+                if bagItemCount > 0 then
+                    addon:DebugCategory("DisplayItemsByCategory: bag %d has %d items", bagID, bagItemCount)
+                end
+            else
+                addon:DebugCategory("DisplayItemsByCategory: bag %d has no data (bag=%s, slots=%s)",
+                    bagID, tostring(bag ~= nil), tostring(bag and bag.slots ~= nil))
+            end
+        end
+    end
+    addon:DebugCategory("DisplayItemsByCategory: total items categorized = %d", totalItemsCategorized)
+
+    -- Add recently emptied slots as empty placeholders in their respective categories
+    -- This preserves the visual position of items that were just moved out
+    if not isOtherChar then
+        for bagID, slots in pairs(recentlyEmptiedSlots) do
+            if not hiddenBankBags[bagID] then
+                for slotID, info in pairs(slots) do
+                    -- Only add if slot is actually empty (not refilled)
+                    local currentLink = GetContainerItemLink(bagID, slotID)
+                    if not currentLink then
+                        local catName = info.category
+                        if catName and categories[catName] then
+                            -- Add empty placeholder to category with original item's sort properties
+                            -- This keeps the placeholder in the same visual position as the original item
+                            table.insert(categories[catName], {
+                                bagID = bagID,
+                                slotID = slotID,
+                                itemData = {
+                                    -- Fake itemData with sort-relevant properties from original item
+                                    quality = info.quality or 0,
+                                    name = info.name or "",
+                                    iLevel = info.iLevel or 0,
+                                },
+                                isEmpty = true,  -- Mark as placeholder (display will show empty slot)
+                            })
+                            addon:DebugCategory("Added empty placeholder for %d:%d to category %s", bagID, slotID, catName)
+                        end
+                    else
+                        -- Slot has item now, remove from tracking
+                        slots[slotID] = nil
                     end
                 end
             end
@@ -591,7 +726,8 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
             for _, item in ipairs(items) do
                 local bagID = item.bagID
                 local slot = item.slotID
-                local itemData = item.itemData
+                -- For empty placeholders, pass nil itemData so button shows as empty slot
+                local itemData = item.isEmpty and nil or item.itemData
 
                 local bagParent = self:GetBagParent(bagID)
                 local button = Guda_GetItemButton(bagParent)
@@ -606,9 +742,15 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
                 local matchesFilter = self:PassesSearchFilter(itemData)
                 Guda_ItemButton_SetItem(button, bagID, slot, itemData, true, isOtherChar and charName or nil, matchesFilter, isOtherChar or isReadOnlyMode)
                 button.inUse = true
+                button.itemCategory = catName  -- Track category for empty slot placeholders
+                button.isEmptyPlaceholder = item.isEmpty  -- Track if this is a placeholder
                 -- Populate slot lookup for O(1) access
                 if not bankSlotToButton[bagID] then bankSlotToButton[bagID] = {} end
                 bankSlotToButton[bagID][slot] = button
+                -- Remove from recently emptied only if slot now has an item (not a placeholder)
+                if itemData then
+                    self:UnmarkSlotAsEmptied(bagID, slot)
+                end
 
                 col = col + 1
                 if col >= blockCols then
@@ -651,6 +793,10 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
             hasAnyBottom = true
             break
         end
+    end
+    -- Also show bottom section if there are free slots (for Empty drop target)
+    if totalFreeSlots > 0 then
+        hasAnyBottom = true
     end
 
     if hasAnyBottom then
@@ -1764,8 +1910,16 @@ function BankFrame:Initialize()
                     bankThrottle.frame:Hide()
                     bankThrottle.pending = false
                     bankThrottle.elapsed = 0
-                    if addon.Modules.BankScanner:IsBankOpen() and not currentViewChar then
+                    -- Update if bank is open OR our frame is shown (for edge cases)
+                    local bankOpen = addon.Modules.BankScanner:IsBankOpen()
+                    local frameShown = Guda_BankFrame and Guda_BankFrame:IsShown()
+                    addon:DebugCategory("Throttle fired: bankOpen=%s, frameShown=%s, viewingCurrent=%s",
+                        tostring(bankOpen), tostring(frameShown), tostring(not currentViewChar))
+                    if (bankOpen or frameShown) and not currentViewChar then
+                        addon:DebugCategory("Throttle: calling BankFrame:Update()")
                         addon.Modules.BankFrame:Update()
+                    else
+                        addon:DebugCategory("Throttle: skipped Update (conditions not met)")
                     end
                 end
             end)
@@ -1774,7 +1928,13 @@ function BankFrame:Initialize()
     end
 
     local function ScheduleBankFrameUpdate(delay)
-        if not addon.Modules.BankScanner:IsBankOpen() then return end
+        -- Allow update if bank is open OR our frame is shown
+        local bankOpen = addon.Modules.BankScanner:IsBankOpen()
+        local frameShown = Guda_BankFrame and Guda_BankFrame:IsShown()
+        if not bankOpen and not frameShown then
+            addon:DebugCategory("ScheduleBankFrameUpdate: skipped (bank not open, frame not shown)")
+            return
+        end
         if currentViewChar then return end
 
         delay = delay or bankThrottle.minDelay
@@ -1792,10 +1952,12 @@ function BankFrame:Initialize()
         bankThrottle.delay = delay
         bankThrottle.elapsed = 0  -- Reset timer (true debounce)
 
+        local wasAlreadyPending = bankThrottle.pending
         if not bankThrottle.pending then
             bankThrottle.pending = true
             GetBankThrottleFrame():Show()
         end
+        addon:DebugCategory("ScheduleBankFrameUpdate: delay=%s, wasAlreadyPending=%s", tostring(delay), tostring(wasAlreadyPending))
     end
 
     -- NOTE: BAG_UPDATE for bank bags (5-10) is handled by the updateFrame below
@@ -1804,7 +1966,10 @@ function BankFrame:Initialize()
 
     -- Update when items get locked/unlocked (debounced for trading, mailing, etc.)
     addon.Modules.Events:Register("ITEM_LOCK_CHANGED", function()
-        if not addon.Modules.BankScanner:IsBankOpen() then return end
+        -- Allow if bank is open OR our frame is shown
+        local bankOpen = addon.Modules.BankScanner:IsBankOpen()
+        local frameShown = Guda_BankFrame and Guda_BankFrame:IsShown()
+        if not bankOpen and not frameShown then return end
         if currentViewChar then return end
         -- In Category View, just update lock states visually without full redraw
         local viewType = addon.Modules.DB:GetSetting("bankViewType") or "single"
@@ -1823,9 +1988,15 @@ function BankFrame:Initialize()
     updateFrame:RegisterEvent("PLAYERBANKBAGSLOTS_CHANGED")
     updateFrame:RegisterEvent("BAG_UPDATE")
     updateFrame:SetScript("OnEvent", function()
+        -- Check if we should process bank events:
+        -- 1. Bank is officially open (IsBankOpen), OR
+        -- 2. Our BankFrame is shown and we're viewing current character (for edge cases)
         local bankOpen = addon.Modules.BankScanner:IsBankOpen()
-        if not bankOpen then
-            addon:DebugCategory("BankFrame event %s: bank not open, ignoring", event or "nil")
+        local frameShown = Guda_BankFrame and Guda_BankFrame:IsShown()
+        local viewingCurrent = not currentViewChar
+
+        if not bankOpen and not (frameShown and viewingCurrent) then
+            addon:DebugCategory("BankFrame event %s: bank not open and frame not shown, ignoring", event or "nil")
             return
         end
         if currentViewChar then return end
@@ -1845,13 +2016,9 @@ function BankFrame:Initialize()
                 local success = BankFrame:UpdateSingleSlot(-1, arg1)
                 addon:DebugCategory("  UpdateSingleSlot(-1, %d) = %s", arg1, tostring(success))
                 if success then
-                    -- Cancel any pending full redraw - incremental update succeeded
-                    if bankThrottle.pending and bankThrottle.frame then
-                        addon:DebugCategory("  Canceling pending full redraw")
-                        bankThrottle.pending = false
-                        bankThrottle.frame:Hide()
-                    end
-                    return  -- Success, no full redraw needed
+                    -- Incremental update succeeded - no need for full redraw for THIS slot
+                    -- But don't cancel pending redraws - other slots might need them
+                    return
                 end
             end
             -- Fallback: full redraw (sorting or single-slot failed)
@@ -1871,13 +2038,9 @@ function BankFrame:Initialize()
                     local result = BankFrame:UpdateChangedSlots(arg1)
                     addon:DebugCategory("  UpdateChangedSlots(%d) = %d", arg1, result)
                     if result >= 0 then
-                        -- Cancel any pending full redraw - incremental update succeeded
-                        if bankThrottle.pending and bankThrottle.frame then
-                            addon:DebugCategory("  Canceling pending full redraw")
-                            bankThrottle.pending = false
-                            bankThrottle.frame:Hide()
-                        end
-                        return  -- Success, no full redraw needed
+                        -- Incremental update succeeded - no need for full redraw for THIS bag
+                        -- But don't cancel pending redraws - other changes might need them
+                        return
                     end
                     -- Fall through to full redraw
                 end
