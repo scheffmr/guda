@@ -57,6 +57,16 @@ function Guda_ResetButtonPool()
     nextButtonID = 1
 end
 
+-- Mark all buttons as available for reuse (called when switching view types)
+-- This allows buttons from one frame to be reused by another
+function Guda_ReleaseAllButtons()
+    for _, button in pairs(buttonPool) do
+        if not button.isBagSlot then
+            button.inUse = false
+        end
+    end
+end
+
 -- Use shared tooltip from Utils module (retrieved on-demand to ensure Utils is loaded)
 
 -- Helper function to check if an item is a quest item

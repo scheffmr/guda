@@ -1147,15 +1147,23 @@ function Guda_SettingsPopup_BagViewTypeButton_OnClick()
     local current = Guda.Modules.DB:GetSetting("bagViewType") or "single"
     local newValue = (current == "single") and "category" or "single"
     Guda.Modules.DB:SetSetting("bagViewType", newValue)
-    
+
     local btn = getglobal("Guda_SettingsPopup_BagViewTypeButton")
     if btn then
         btn:SetText(newValue == "single" and "Bag View: Single" or "Bag View: Category")
     end
-    
-    -- Refresh bag frame if it's open
+
+    -- Release all buttons so they can be reused when switching views
+    if Guda_ReleaseAllButtons then
+        Guda_ReleaseAllButtons()
+    end
+
+    -- Refresh BOTH frames to ensure buttons are properly distributed
     if Guda_BagFrame:IsShown() then
         Guda.Modules.BagFrame:Update()
+    end
+    if Guda_BankFrame and Guda_BankFrame:IsShown() then
+        Guda.Modules.BankFrame:Update()
     end
 end
 
@@ -1164,15 +1172,23 @@ function Guda_SettingsPopup_BankViewTypeButton_OnClick()
     local current = Guda.Modules.DB:GetSetting("bankViewType") or "single"
     local newValue = (current == "single") and "category" or "single"
     Guda.Modules.DB:SetSetting("bankViewType", newValue)
-    
+
     local btn = getglobal("Guda_SettingsPopup_BankViewTypeButton")
     if btn then
         btn:SetText(newValue == "single" and "Bank View: Single" or "Bank View: Category")
     end
-    
-    -- Refresh bank frame if it's open
-    if Guda_BankFrame:IsShown() then
+
+    -- Release all buttons so they can be reused when switching views
+    if Guda_ReleaseAllButtons then
+        Guda_ReleaseAllButtons()
+    end
+
+    -- Refresh BOTH frames to ensure buttons are properly distributed
+    if Guda_BankFrame and Guda_BankFrame:IsShown() then
         Guda.Modules.BankFrame:Update()
+    end
+    if Guda_BagFrame:IsShown() then
+        Guda.Modules.BagFrame:Update()
     end
 end
 
