@@ -212,11 +212,12 @@ end
 function Guda_SortCategoryItems(items)
     if not items then return end
     table.sort(items, function(a, b)
-        -- Nil guards for sort stability
+        -- Guard against nil entries
         if not a then return false end
         if not b then return true end
         if not a.itemData then return false end
         if not b.itemData then return true end
+
         -- Rank Trade Goods: meat (name ends with 'meat') = 2, egg (contains 'egg') = 1, others = 0
         local function tgRank(d)
             if not d or not d.name then return 0 end
@@ -233,8 +234,8 @@ function Guda_SortCategoryItems(items)
             return ra > rb
         end
         -- Priority: consumable restore tags (eat > drink > restore > nil)
-        local pa = a.itemData and a.itemData.restoreTag or nil
-        local pb = b.itemData and b.itemData.restoreTag or nil
+        local pa = a.itemData.restoreTag
+        local pb = b.itemData.restoreTag
         local function pr(t)
             if t == "eat" then return 3 end
             if t == "drink" then return 2 end
@@ -248,8 +249,8 @@ function Guda_SortCategoryItems(items)
         if a.itemData.subclass ~= b.itemData.subclass then
             return (a.itemData.subclass or "") < (b.itemData.subclass or "")
         end
-        if a.itemData.quality ~= b.itemData.quality then
-            return a.itemData.quality > b.itemData.quality
+        if (a.itemData.quality or 0) ~= (b.itemData.quality or 0) then
+            return (a.itemData.quality or 0) > (b.itemData.quality or 0)
         end
         return (a.itemData.name or "") < (b.itemData.name or "")
     end)

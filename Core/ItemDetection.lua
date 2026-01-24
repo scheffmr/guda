@@ -15,11 +15,37 @@ local detectionCache = {}
 local cacheHits = 0
 local cacheMisses = 0
 
--- Clear the detection cache
+-- Clear the entire detection cache (use sparingly - only for major events)
+-- For simple item moves, use InvalidateItem() or don't invalidate at all
 function ItemDetection:ClearCache()
     detectionCache = {}
     cacheHits = 0
     cacheMisses = 0
+end
+
+-- Invalidate a specific item from cache (by itemLink)
+-- Use this when a specific item's properties might have changed
+function ItemDetection:InvalidateItem(itemLink)
+    if itemLink then
+        detectionCache[itemLink] = nil
+    end
+end
+
+-- Invalidate multiple items from cache
+-- Use this for batch operations
+function ItemDetection:InvalidateItems(itemLinks)
+    if itemLinks then
+        for _, link in ipairs(itemLinks) do
+            if link then
+                detectionCache[link] = nil
+            end
+        end
+    end
+end
+
+-- Check if we have cached data for an item (useful for debugging)
+function ItemDetection:IsCached(itemLink)
+    return itemLink and detectionCache[itemLink] ~= nil
 end
 
 -- Get cache statistics

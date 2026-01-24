@@ -14,6 +14,7 @@ local searchText = ""
 local isReadOnlyMode = false  -- Track if viewing saved bank (read-only) or live bank (interactive)
 local hiddenBankBags = {} -- Track which bank bags are hidden (bagID -> true/false)
 local bankBagParents = {} -- Parent frames per bank bag (same approach as BagFrame)
+local bankSlotToButton = {} -- Fast O(1) lookup: bankSlotToButton[bagID][slotID] = button
 -- Global click catcher for clearing bank search focus
 local bankClickCatcher = nil
 
@@ -135,18 +136,9 @@ function BankFrame:UpdateSingleSlot(bagID, slotID)
     if not Guda_BankFrame:IsShown() then return false end
     if currentViewChar then return false end  -- Can't do single-slot for other characters
 
-    -- Find the button for this slot
-    local bankBagParent = bankBagParents[bagID]
-    if not bankBagParent or not bankBagParent.itemButtons then return false end
-
-    local targetButton = nil
-    for button in pairs(bankBagParent.itemButtons) do
-        if button.bagID == bagID and button.slotID == slotID then
-            targetButton = button
-            break
-        end
-    end
-
+    -- O(1) button lookup using hash table
+    if not bankSlotToButton[bagID] then return false end
+    local targetButton = bankSlotToButton[bagID][slotID]
     if not targetButton then return false end
 
     -- Get fresh item data for this slot
@@ -190,22 +182,16 @@ function BankFrame:UpdateChangedSlots(bagID)
     if not Guda_BankFrame:IsShown() then return -1 end
     if currentViewChar then return -1 end
 
-    local bankBagParent = bankBagParents[bagID]
-    if not bankBagParent or not bankBagParent.itemButtons then return -1 end
+    -- Check if we have the slot lookup table for this bag
+    if not bankSlotToButton[bagID] then return -1 end
 
     local numSlots = addon.Modules.Utils:GetBagSlotCount(bagID)
     if not numSlots or numSlots == 0 then return -1 end
 
     local updatedCount = 0
     for slotID = 1, numSlots do
-        -- Find button for this slot
-        local targetButton = nil
-        for button in pairs(bankBagParent.itemButtons) do
-            if button.bagID == bagID and button.slotID == slotID then
-                targetButton = button
-                break
-            end
-        end
+        -- O(1) button lookup using hash table
+        local targetButton = bankSlotToButton[bagID][slotID]
 
         if not targetButton then
             -- Button not found, need full redraw
@@ -302,7 +288,7 @@ function BankFrame:Update()
     end
 
     -- Mark all existing buttons as not in use (we'll mark active ones during display)
-    -- Mark all existing buttons as not in use (we'll mark active ones during display)
+    -- Also clear the slot lookup table for fresh rebuild
     for _, bankBagParent in pairs(bankBagParents) do
         if bankBagParent and bankBagParent.itemButtons then
             for button in pairs(bankBagParent.itemButtons) do
@@ -311,6 +297,9 @@ function BankFrame:Update()
                 end
             end
         end
+    end
+    for k in pairs(bankSlotToButton) do
+        bankSlotToButton[k] = nil
     end
 
     -- Determine if we're in read-only mode:
@@ -522,6 +511,9 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
                 local matchesFilter = self:PassesSearchFilter(itemData)
                 Guda_ItemButton_SetItem(button, bagID, slot, itemData, true, isOtherChar and charName or nil, matchesFilter, isOtherChar or isReadOnlyMode)
                 button.inUse = true
+                -- Populate slot lookup for O(1) access
+                if not bankSlotToButton[bagID] then bankSlotToButton[bagID] = {} end
+                bankSlotToButton[bagID][slot] = button
 
                 col = col + 1
                 if col >= blockCols then
@@ -580,8 +572,11 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
             if numItems > 0 then
                 if sec.name == "Tools" then
                     table.sort(items, function(a, b)
-                        if a.itemData.quality ~= b.itemData.quality then
-                            return a.itemData.quality > b.itemData.quality
+                        -- Guard against nil entries
+                        if not a or not a.itemData then return false end
+                        if not b or not b.itemData then return true end
+                        if (a.itemData.quality or 0) ~= (b.itemData.quality or 0) then
+                            return (a.itemData.quality or 0) > (b.itemData.quality or 0)
                         end
                         return (a.itemData.name or "") < (b.itemData.name or "")
                     end)
@@ -642,7 +637,10 @@ function BankFrame:DisplayItemsByCategory(bankData, isOtherChar, charName)
                         button:Show()
                         Guda_ItemButton_SetItem(button, item.bagID, item.slotID, item.itemData, true, isOtherChar and charName or nil, self:PassesSearchFilter(item.itemData), isOtherChar or isReadOnlyMode)
                         button.inUse = true
-                        
+                        -- Populate slot lookup for O(1) access
+                        if not bankSlotToButton[item.bagID] then bankSlotToButton[item.bagID] = {} end
+                        bankSlotToButton[item.bagID][item.slotID] = button
+
                         sCol = sCol + 1
                         if sCol >= blockCols then
                             sCol = 0
@@ -795,6 +793,9 @@ function BankFrame:DisplayItems(bankData, isOtherChar, charName)
                 button:SetPoint("TOPLEFT", itemContainer, "TOPLEFT", xPos, yPos)
 
                 Guda_ItemButton_SetItem(button, bagID, slot, itemData, true, isOtherChar and charName or nil, matchesFilter, isReadOnlyMode)
+                -- Populate slot lookup for O(1) access
+                if not bankSlotToButton[bagID] then bankSlotToButton[bagID] = {} end
+                bankSlotToButton[bagID][slot] = button
 
                 col = col + 1
                 if col >= perRow then
@@ -1229,7 +1230,9 @@ function Guda_BankFrame_MergeStacks()
 		if table.getn(group.stacks) > 1 then
 			-- Sort stacks: larger stacks first (targets), smaller stacks last (sources)
 			table.sort(group.stacks, function(a, b)
-				return a.count > b.count
+				if not a then return false end
+				if not b then return true end
+				return (a.count or 0) > (b.count or 0)
 			end)
 
 			local sourceLoopStart = table.getn(group.stacks)
@@ -1730,11 +1733,9 @@ function BankFrame:Initialize()
             -- arg1 is the slot number (1-28 for main bank)
             -- Try single-slot update if not sorting
             if not isSorting then
-                -- Invalidate cache for fresh data
+                -- Invalidate bag scanner cache for fresh slot data
+                -- NOTE: Don't clear ItemDetection cache - item properties don't change on move
                 addon.Modules.BankScanner:InvalidateBag(-1)
-                if addon.Modules.ItemDetection then
-                    addon.Modules.ItemDetection:ClearCache()
-                end
                 -- Try single-slot update
                 if BankFrame:UpdateSingleSlot(-1, arg1) then
                     return  -- Success, no full redraw needed
@@ -1742,30 +1743,21 @@ function BankFrame:Initialize()
             end
             -- Fallback: full redraw (sorting or single-slot failed)
             addon.Modules.BankScanner:InvalidateBag(-1)
-            if addon.Modules.ItemDetection then
-                addon.Modules.ItemDetection:ClearCache()
-            end
         elseif event == "BAG_UPDATE" and arg1 then
             -- Check if this is a bank bag (5-10)
             if arg1 >= 5 and arg1 <= 10 then
+                -- Invalidate bag scanner cache for fresh slot data
+                -- NOTE: Don't clear ItemDetection cache - item properties don't change on move
+                addon.Modules.BankScanner:InvalidateBag(arg1)
+
                 -- Try incremental update if not sorting
                 if not isSorting then
-                    addon.Modules.BankScanner:InvalidateBag(arg1)
-                    if addon.Modules.ItemDetection then
-                        addon.Modules.ItemDetection:ClearCache()
-                    end
                     -- Try to update only changed slots
                     local result = BankFrame:UpdateChangedSlots(arg1)
                     if result >= 0 then
                         return  -- Success, no full redraw needed
                     end
                     -- Fall through to full redraw
-                else
-                    -- Sorting in progress - invalidate for full redraw
-                    addon.Modules.BankScanner:InvalidateBag(arg1)
-                    if addon.Modules.ItemDetection then
-                        addon.Modules.ItemDetection:ClearCache()
-                    end
                 end
             else
                 -- Not a bank bag, ignore for bank frame
@@ -1773,11 +1765,9 @@ function BankFrame:Initialize()
             end
         elseif event == "PLAYERBANKBAGSLOTS_CHANGED" then
             -- Bank container slot changed (bag added/removed)
-            -- Must clear entire cache since bag structure changed
+            -- Clear bag scanner cache since structure changed
+            -- NOTE: Don't clear ItemDetection cache - item properties don't change
             addon.Modules.BankScanner:ClearCache()
-            if addon.Modules.ItemDetection then
-                addon.Modules.ItemDetection:ClearCache()
-            end
         end
 
         -- Slightly longer delay to ensure WoW API has updated

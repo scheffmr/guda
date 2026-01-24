@@ -578,10 +578,12 @@ local function ConsolidateStacks(bagIDs)
 			if maxStack > 1 then
 			-- Sort stacks: higher priority bags first, then larger stacks
 				table.sort(group.stacks, function(a, b)
-					if a.priority ~= b.priority then
-						return a.priority > b.priority
+					if not a then return false end
+					if not b then return true end
+					if (a.priority or 0) ~= (b.priority or 0) then
+						return (a.priority or 0) > (b.priority or 0)
 					end
-					return a.count > b.count
+					return (a.count or 0) > (b.count or 0)
 				end)
 
 				-- Greedy consolidation: fill stacks from left to right
@@ -826,9 +828,13 @@ local function SortItems(items)
 	end
 
 	table.sort(items, function(a, b)
+		-- Guard against nil entries
+		if not a then return false end
+		if not b then return true end
+
 	-- 1. Priority items first (Hearthstone, etc.)
-		if a.priority ~= b.priority then
-			return a.priority < b.priority
+		if (a.priority or 0) ~= (b.priority or 0) then
+			return (a.priority or 0) < (b.priority or 0)
 		end
 
 		-- 2. Equippable items always come before non-equippable items
@@ -1018,10 +1024,12 @@ local function BuildTargetPositions(bagIDs, itemCount)
 	-- Only sort if we have more than one element
 	if table.getn(sortedBags) > 1 then
 		table.sort(sortedBags, function(a, b)
-			if a.priority ~= b.priority then
-				return a.priority > b.priority
+			if not a then return false end
+			if not b then return true end
+			if (a.priority or 0) ~= (b.priority or 0) then
+				return (a.priority or 0) > (b.priority or 0)
 			end
-			return a.bagID < b.bagID
+			return (a.bagID or 0) < (b.bagID or 0)
 		end)
 	end
 
@@ -1189,10 +1197,12 @@ local function BuildGreyTailPositions(bagIDs, greyCount)
 	-- Only sort if we have more than one element
 	if table.getn(ordered) > 1 then
 		table.sort(ordered, function(a, b)
-			if a.priority ~= b.priority then
-				return a.priority < b.priority -- lowest first
+			if not a then return false end
+			if not b then return true end
+			if (a.priority or 0) ~= (b.priority or 0) then
+				return (a.priority or 0) < (b.priority or 0) -- lowest first
 			end
-			return a.bagID > b.bagID -- higher bagID later (treated as further to the right)
+			return (a.bagID or 0) > (b.bagID or 0) -- higher bagID later (treated as further to the right)
 		end)
 	end
 
@@ -1214,15 +1224,17 @@ local function BuildGreyTailPositions(bagIDs, greyCount)
 	-- Ascending order: Priority DESC, BagID ASC, Slot ASC (matching BuildTargetPositions)
 	if table.getn(tailSlots) > 1 then
 		table.sort(tailSlots, function(a, b)
+			if not a then return false end
+			if not b then return true end
 			local aPrio = tonumber(addon.Modules.Utils:GetContainerPriority(a.bag)) or 0
 			local bPrio = tonumber(addon.Modules.Utils:GetContainerPriority(b.bag)) or 0
 			if aPrio ~= bPrio then
 				return aPrio > bPrio
 			end
-			if a.bag ~= b.bag then
-				return a.bag < b.bag
+			if (a.bag or 0) ~= (b.bag or 0) then
+				return (a.bag or 0) < (b.bag or 0)
 			end
-			return a.slot < b.slot
+			return (a.slot or 0) < (b.slot or 0)
 		end)
 	end
 
@@ -1518,11 +1530,9 @@ function SortEngine:SortBags()
      end
  end
 
-	-- Clear caches after sorting to ensure fresh detection on next UI update
+	-- Clear bag position cache after sorting to ensure fresh slot data on next UI update
+	-- NOTE: Don't clear ItemDetection cache - item properties don't change when items move
 	addon.Modules.BagScanner:ClearCache()
-	if addon.Modules.ItemDetection then
-		addon.Modules.ItemDetection:ClearCache()
-	end
 
 	-- Return total moves made
 	return routeCount + consolidateCount + specializedMoves + regularMoves
@@ -1655,11 +1665,9 @@ function SortEngine:SortBank()
      end
  end
 
-	-- Clear caches after sorting to ensure fresh detection on next UI update
+	-- Clear bag position cache after sorting to ensure fresh slot data on next UI update
+	-- NOTE: Don't clear ItemDetection cache - item properties don't change when items move
 	addon.Modules.BankScanner:ClearCache()
-	if addon.Modules.ItemDetection then
-		addon.Modules.ItemDetection:ClearCache()
-	end
 
 	-- Return total moves made
 	return routeCount + consolidateCount + specializedMoves + regularMoves
@@ -1727,14 +1735,11 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
 				SortEngine.sortingInProgress = false
 				SortEngine:UpdateSortButtonState(false)
 				currentSortType = "bags"  -- Reset sort context
-				-- Clear caches after sorting to ensure fresh detection
+				-- Clear bag position cache - item properties don't change on move
 				if sortType == "bank" then
 					addon.Modules.BankScanner:ClearCache()
 				else
 					addon.Modules.BagScanner:ClearCache()
-				end
-				if addon.Modules.ItemDetection then
-					addon.Modules.ItemDetection:ClearCache()
 				end
 				updateFrame()
 			end)
@@ -1748,14 +1753,11 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
 				SortEngine.sortingInProgress = false
 				SortEngine:UpdateSortButtonState(false)
 				currentSortType = "bags"  -- Reset sort context
-				-- Clear caches after sorting to ensure fresh detection
+				-- Clear bag position cache - item properties don't change on move
 				if sortType == "bank" then
 					addon.Modules.BankScanner:ClearCache()
 				else
 					addon.Modules.BagScanner:ClearCache()
-				end
-				if addon.Modules.ItemDetection then
-					addon.Modules.ItemDetection:ClearCache()
 				end
 				updateFrame()
 			end)
@@ -1776,14 +1778,11 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
                     SortEngine.sortingInProgress = false
                     SortEngine:UpdateSortButtonState(false)
                     currentSortType = "bags"  -- Reset sort context
-                    -- Clear caches after sorting to ensure fresh detection
+                    -- Clear bag position cache - item properties don't change on move
                     if sortType == "bank" then
                         addon.Modules.BankScanner:ClearCache()
                     else
                         addon.Modules.BagScanner:ClearCache()
-                    end
-                    if addon.Modules.ItemDetection then
-                        addon.Modules.ItemDetection:ClearCache()
                     end
                     updateFrame()
                 end)

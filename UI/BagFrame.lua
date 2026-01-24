@@ -21,6 +21,7 @@ function BagFrame:GetCurrentViewChar()
 end
 local searchText = ""
 local itemButtons = {}
+local slotToButton = {} -- Fast O(1) lookup: slotToButton[bagID][slotID] = button
 local showKeyring = false -- Toggle for keyring display
 local hiddenBags = {} -- Track which bags are hidden (bagID -> true/false)
 local bagParents = {} -- Per-bag parent frames to carry bagID for Blizzard item button templates
@@ -243,16 +244,13 @@ function BagFrame:UpdateChangedSlots(bagID)
     local numSlots = GetContainerNumSlots(bagID)
     if not numSlots or numSlots == 0 then return -1 end
 
+    -- Check if we have the slot lookup table for this bag
+    if not slotToButton[bagID] then return -1 end
+
     local updatedCount = 0
     for slotID = 1, numSlots do
-        -- Find button for this slot
-        local targetButton = nil
-        for _, button in ipairs(itemButtons) do
-            if button.bagID == bagID and button.slotID == slotID then
-                targetButton = button
-                break
-            end
-        end
+        -- O(1) button lookup using hash table
+        local targetButton = slotToButton[bagID][slotID]
 
         if not targetButton then
             -- Button not found, need full redraw
@@ -498,9 +496,12 @@ function BagFrame:Update()
 	-- Display items
 	local viewType = addon.Modules.DB:GetSetting("bagViewType") or "single"
 
-	-- Clear itemButtons table before rebuilding (prevents stale references)
+	-- Clear itemButtons table and slot lookup before rebuilding (prevents stale references)
 	for k in pairs(itemButtons) do
 		itemButtons[k] = nil
+	end
+	for k in pairs(slotToButton) do
+		slotToButton[k] = nil
 	end
 
     -- Reset all section headers before displaying items
@@ -704,6 +705,9 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 Guda_ItemButton_SetItem(button, bagID, slot, itemData, false, isOtherChar and charName or nil, matchesFilter, isOtherChar)
                 button.inUse = true
                 table.insert(itemButtons, button)
+                -- Populate slot lookup for O(1) access
+                if not slotToButton[bagID] then slotToButton[bagID] = {} end
+                slotToButton[bagID][slot] = button
 
                 col = col + 1
                 if col >= blockCols then
@@ -766,8 +770,11 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
             if numItems > 0 then
                 if sec.name == "Tools" then
                     table.sort(items, function(a, b)
-                        if a.itemData.quality ~= b.itemData.quality then
-                            return a.itemData.quality > b.itemData.quality
+                        -- Guard against nil entries
+                        if not a or not a.itemData then return false end
+                        if not b or not b.itemData then return true end
+                        if (a.itemData.quality or 0) ~= (b.itemData.quality or 0) then
+                            return (a.itemData.quality or 0) > (b.itemData.quality or 0)
                         end
                         return (a.itemData.name or "") < (b.itemData.name or "")
                     end)
@@ -830,6 +837,9 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                         Guda_ItemButton_SetItem(button, item.bagID, item.slotID, item.itemData, false, isOtherChar and charName or nil, self:PassesSearchFilter(item.itemData), isOtherChar)
                         button.inUse = true
                         table.insert(itemButtons, button)
+                        -- Populate slot lookup for O(1) access
+                        if not slotToButton[item.bagID] then slotToButton[item.bagID] = {} end
+                        slotToButton[item.bagID][item.slotID] = button
 
                         sCol = sCol + 1
                         if sCol >= blockCols then
@@ -1005,6 +1015,9 @@ function BagFrame:DisplayItems(bagData, isOtherChar, charName)
 				Guda_ItemButton_SetItem(button, bagID, slot, itemData, false, isOtherChar and charName or nil, matchesFilter, isOtherChar)
 
 				table.insert(itemButtons, button)
+				-- Populate slot lookup for O(1) access
+				if not slotToButton[bagID] then slotToButton[bagID] = {} end
+				slotToButton[bagID][slot] = button
 
 				-- Advance position
 				col = col + 1
@@ -1746,7 +1759,9 @@ function Guda_BagFrame_MergeStacks()
 		if table.getn(group.stacks) > 1 then
 			-- Sort stacks: larger stacks first (targets), smaller stacks last (sources)
 			table.sort(group.stacks, function(a, b)
-				return a.count > b.count
+				if not a then return false end
+				if not b then return true end
+				return (a.count or 0) > (b.count or 0)
 			end)
 
 			local sourceLoopStart = table.getn(group.stacks)
@@ -2688,10 +2703,8 @@ function BagFrame:Initialize()
 
      if not isSorting then
          -- Try incremental update for manual item moves
+         -- NOTE: Don't clear ItemDetection cache - item properties don't change on move
          addon.Modules.BagScanner:InvalidateBag(arg1)
-         if addon.Modules.ItemDetection then
-             addon.Modules.ItemDetection:ClearCache()
-         end
 
          -- Try to update only changed slots in this bag
          local result = BagFrame:UpdateChangedSlots(arg1)
