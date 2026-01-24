@@ -4,7 +4,7 @@ local addon = Guda
 -- Item button pool
 local buttonPool = {}
 local nextButtonID = 1
-local BUTTON_POOL_MAX = 350  -- Maximum buttons to create (bags ~80 + bank ~124 + keyring ~96 + buffer)
+local BUTTON_POOL_MAX = 500  -- Maximum buttons to create (bags ~80 + bank ~200 + keyring ~96 + buffer for both frames open)
 
 -- Get button pool statistics (for /guda perf command)
 function Guda_GetButtonPoolStats()

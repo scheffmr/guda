@@ -782,8 +782,6 @@ function BankFrame:DisplayItems(bankData, isOtherChar, charName)
                 local bankBagParent = self:GetBagParent(bagID)
 
                 local button = Guda_GetItemButton(bankBagParent)
-                if button.isBagSlot then break end
-
                 button.inUse = true
 
                 local xPos = x + (col * (buttonSize + spacing))
