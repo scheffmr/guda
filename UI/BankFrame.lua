@@ -130,6 +130,60 @@ function BankFrame:UpdateLockStates()
     Guda_UpdateLockStates(bankBagParents)
 end
 
+-- Update a single slot without full frame redraw (used for manual item moves)
+function BankFrame:UpdateSingleSlot(bagID, slotID)
+    if not Guda_BankFrame:IsShown() then return false end
+    if currentViewChar then return false end  -- Can't do single-slot for other characters
+
+    -- Find the button for this slot
+    local bankBagParent = bankBagParents[bagID]
+    if not bankBagParent or not bankBagParent.itemButtons then return false end
+
+    local targetButton = nil
+    for button in pairs(bankBagParent.itemButtons) do
+        if button.bagID == bagID and button.slot == slotID then
+            targetButton = button
+            break
+        end
+    end
+
+    if not targetButton then return false end
+
+    -- Get fresh item data for this slot
+    local itemLink = GetContainerItemLink(bagID, slotID)
+    local itemData = nil
+
+    if itemLink then
+        local texture, itemCount, locked = GetContainerItemInfo(bagID, slotID)
+        local itemID = nil
+        local _, _, idStr = string.find(itemLink, "item:(%d+)")
+        if idStr then itemID = tonumber(idStr) end
+
+        if itemID then
+            local name, link, quality, iLevel, _, itemType, stackCount, subType, _, equipLoc = GetItemInfo(itemID)
+            itemData = {
+                link = itemLink,
+                texture = texture,
+                count = itemCount or 1,
+                quality = quality or 0,
+                name = name,
+                iLevel = iLevel,
+                type = itemType,
+                subclass = subType,
+                equipLoc = equipLoc,
+                stackSize = stackCount or 1,
+                locked = locked,
+            }
+        end
+    end
+
+    -- Update the button
+    local matchesFilter = self:PassesSearchFilter(itemData)
+    Guda_ItemButton_SetItem(targetButton, bagID, slotID, itemData, true, nil, matchesFilter, isReadOnlyMode)
+
+    return true
+end
+
 -- Deferred update state for frame budgeting
 local bankPendingUpdate = false
 local bankUpdateDebounceFrame = nil
@@ -1626,11 +1680,25 @@ function BankFrame:Initialize()
         if not addon.Modules.BankScanner:IsBankOpen() then return end
         if currentViewChar then return end
 
+        -- Check if sorting is in progress - use full redraw with throttle
+        local isSorting = addon.Modules.SortEngine and addon.Modules.SortEngine.sortingInProgress
+
         if event == "PLAYERBANKSLOTS_CHANGED" and arg1 then
-            -- Invalidate the entire main bank bag to ensure fresh data
-            -- (MarkSlotDirty was causing timing issues with item data)
+            -- arg1 is the slot number (1-28 for main bank)
+            -- Try single-slot update if not sorting
+            if not isSorting then
+                -- Invalidate cache for fresh data
+                addon.Modules.BankScanner:InvalidateBag(-1)
+                if addon.Modules.ItemDetection then
+                    addon.Modules.ItemDetection:ClearCache()
+                end
+                -- Try single-slot update
+                if BankFrame:UpdateSingleSlot(-1, arg1) then
+                    return  -- Success, no full redraw needed
+                end
+            end
+            -- Fallback: full redraw (sorting or single-slot failed)
             addon.Modules.BankScanner:InvalidateBag(-1)
-            -- Clear ItemDetection cache to ensure fresh detection after item swap
             if addon.Modules.ItemDetection then
                 addon.Modules.ItemDetection:ClearCache()
             end

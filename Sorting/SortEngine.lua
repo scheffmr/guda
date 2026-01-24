@@ -12,7 +12,8 @@ SortEngine.sortingInProgress = false
 -- Performance: Max items to move per cycle
 -- Baganator uses 5 for manual transfers, but sorting needs more for smooth operation
 local MAX_MOVES_PER_CYCLE = 20
-local MAX_BANK_MOVES_PER_CYCLE = 30  -- Bank has 50% more slots, needs more moves per cycle
+-- Bank uses fewer moves per cycle to avoid lock conflicts (bank ops are slower)
+local MAX_BANK_MOVES_PER_CYCLE = 15
 
 -- Current sort context (set by ExecuteSort, used by ApplySort)
 local currentSortType = "bags"
@@ -1135,6 +1136,11 @@ local function ApplySort(bagIDs, items, targetPositions)
 		end
 	end
 
+	-- Debug: report locked items if any
+	if lockedCount > 0 then
+		addon:DebugSort("ApplySort: %d moves completed, %d items were locked", moveCount, lockedCount)
+	end
+
 	return moveCount
 end
 
@@ -1791,9 +1797,10 @@ function SortEngine:ExecuteSort(sortFunction, analyzeFunction, updateFrame, sort
                 sortType, passCount, moveCount, currentAnalysis.itemsOutOfPlace, currentAnalysis.totalItems, remainingRatio * 100)
 
 			-- PROGRESSIVE DELAY: Short delay to let server process moves
-			-- Reduced from 0.9-3.4s to 0.2-0.5s for smoother sorting
-			local baseDelay = 0.2
-			local complexityDelay = math.min(currentAnalysis.itemsOutOfPlace * 0.01, 0.3) -- max 0.3 seconds
+			-- Bank needs longer delays because bank operations take longer to complete
+			local baseDelay = (sortType == "bank") and 0.35 or 0.2
+			local maxComplexityDelay = (sortType == "bank") and 0.5 or 0.3
+			local complexityDelay = math.min(currentAnalysis.itemsOutOfPlace * 0.01, maxComplexityDelay)
 			local totalDelay = baseDelay + complexityDelay
 
 			addon:DebugSort("Waiting %.1f seconds before next pass...", totalDelay)
