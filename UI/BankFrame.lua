@@ -1714,11 +1714,9 @@ function BankFrame:Initialize()
         end
     end
 
-    addon.Modules.Events:OnBagUpdate(function()
-        if addon.Modules.BankScanner:IsBankOpen() and not currentViewChar then
-            ScheduleBankFrameUpdate(0.1)
-        end
-    end, "BankFrameUI")
+    -- NOTE: BAG_UPDATE for bank bags (5-10) is handled by the updateFrame below
+    -- which provides incremental update logic. We don't need a separate OnBagUpdate
+    -- handler here as it would cause duplicate processing.
 
     -- Update when items get locked/unlocked (debounced for trading, mailing, etc.)
     addon.Modules.Events:Register("ITEM_LOCK_CHANGED", function()

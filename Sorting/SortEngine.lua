@@ -12,8 +12,9 @@ SortEngine.sortingInProgress = false
 -- Performance: Max items to move per cycle
 -- Baganator uses 5 for manual transfers, but sorting needs more for smooth operation
 local MAX_MOVES_PER_CYCLE = 20
--- Bank uses fewer moves per cycle to avoid lock conflicts (bank ops are slower)
-local MAX_BANK_MOVES_PER_CYCLE = 15
+-- Bank needs more moves per cycle due to larger capacity (240 vs 160 slots)
+-- But not too many to avoid server-side lock conflicts
+local MAX_BANK_MOVES_PER_CYCLE = 25
 
 -- Current sort context (set by ExecuteSort, used by ApplySort)
 local currentSortType = "bags"
@@ -1117,22 +1118,35 @@ local function ApplySort(bagIDs, items, targetPositions)
 	end
 
 	-- Execute swaps with occupied slots (if we haven't hit the limit)
+	-- Be conservative with swaps - they can cause chain reactions
+	-- Limit swaps to half of max moves to leave room for next pass corrections
+	local maxSwaps = math.floor(maxMoves / 2)
+	local swapCount = 0
+
 	for _, move in ipairs(swapOccupied) do
-		-- Limit moves per cycle
-		if moveCount >= maxMoves then
+		-- Limit total moves and swaps separately
+		if moveCount >= maxMoves or swapCount >= maxSwaps then
 			break
 		end
 
-		local _, _, sourceLocked = GetContainerItemInfo(move.sourceBag, move.sourceSlot)
-		local _, _, targetLocked = GetContainerItemInfo(move.targetBag, move.targetSlot)
-
-		if not sourceLocked and not targetLocked then
-			PickupContainerItem(move.sourceBag, move.sourceSlot)
-			PickupContainerItem(move.targetBag, move.targetSlot)
-			ClearCursor()
-			moveCount = moveCount + 1
+		-- Verify source item is still there (previous swaps may have moved it)
+		local sourceLink = GetContainerItemLink(move.sourceBag, move.sourceSlot)
+		if not sourceLink then
+			-- Source slot is now empty, skip this swap (will be handled next pass)
+			addon:DebugSort("Swap skipped: source slot now empty (%d:%d)", move.sourceBag, move.sourceSlot)
 		else
-			lockedCount = lockedCount + 1
+			local _, _, sourceLocked = GetContainerItemInfo(move.sourceBag, move.sourceSlot)
+			local _, _, targetLocked = GetContainerItemInfo(move.targetBag, move.targetSlot)
+
+			if not sourceLocked and not targetLocked then
+				PickupContainerItem(move.sourceBag, move.sourceSlot)
+				PickupContainerItem(move.targetBag, move.targetSlot)
+				ClearCursor()
+				moveCount = moveCount + 1
+				swapCount = swapCount + 1
+			else
+				lockedCount = lockedCount + 1
+			end
 		end
 	end
 
