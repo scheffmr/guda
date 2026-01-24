@@ -182,6 +182,111 @@ function BagFrame:UpdateLockStates()
     Guda_UpdateLockStates(bagParents)
 end
 
+-- Update a single slot without full frame redraw (used for manual item moves)
+-- Returns true if successful, false if full redraw is needed
+function BagFrame:UpdateSingleSlot(bagID, slotID)
+    if not Guda_BagFrame:IsShown() then return false end
+    if currentViewChar then return false end  -- Can't do single-slot for other characters
+
+    -- Find the button for this slot in itemButtons
+    local targetButton = nil
+    for _, button in ipairs(itemButtons) do
+        if button.bagID == bagID and button.slotID == slotID then
+            targetButton = button
+            break
+        end
+    end
+
+    if not targetButton then return false end
+
+    -- Get fresh item data for this slot
+    local itemLink = GetContainerItemLink(bagID, slotID)
+    local itemData = nil
+
+    if itemLink then
+        local texture, itemCount, locked, slotQuality = GetContainerItemInfo(bagID, slotID)
+        local itemID = nil
+        local _, _, idStr = string.find(itemLink, "item:(%d+)")
+        if idStr then itemID = tonumber(idStr) end
+
+        if itemID then
+            local name, link, quality, iLevel, _, itemType, stackCount, subType, _, equipLoc = GetItemInfo(itemID)
+            itemData = {
+                link = itemLink,
+                texture = texture,
+                count = itemCount or 1,
+                quality = quality or slotQuality or 0,
+                name = name,
+                iLevel = iLevel,
+                type = itemType,
+                subclass = subType,
+                equipLoc = equipLoc,
+                stackSize = stackCount or 1,
+                locked = locked,
+            }
+        end
+    end
+
+    -- Update the button
+    local matchesFilter = self:PassesSearchFilter(itemData)
+    Guda_ItemButton_SetItem(targetButton, bagID, slotID, itemData, false, nil, matchesFilter, false)
+
+    return true
+end
+
+-- Update changed slots in a bag by comparing with cached data
+-- Returns number of slots updated, or -1 if full redraw is needed
+function BagFrame:UpdateChangedSlots(bagID)
+    if not Guda_BagFrame:IsShown() then return -1 end
+    if currentViewChar then return -1 end
+
+    local numSlots = GetContainerNumSlots(bagID)
+    if not numSlots or numSlots == 0 then return -1 end
+
+    local updatedCount = 0
+    for slotID = 1, numSlots do
+        -- Find button for this slot
+        local targetButton = nil
+        for _, button in ipairs(itemButtons) do
+            if button.bagID == bagID and button.slotID == slotID then
+                targetButton = button
+                break
+            end
+        end
+
+        if not targetButton then
+            -- Button not found, need full redraw
+            return -1
+        end
+
+        -- Compare current item with button's cached data
+        local currentLink = GetContainerItemLink(bagID, slotID)
+        local cachedLink = targetButton.itemData and targetButton.itemData.link or nil
+
+        -- Check if slot changed (different item or count)
+        local needsUpdate = false
+        if currentLink ~= cachedLink then
+            needsUpdate = true
+        elseif currentLink then
+            local _, currentCount = GetContainerItemInfo(bagID, slotID)
+            local cachedCount = targetButton.itemData and targetButton.itemData.count or 0
+            if currentCount ~= cachedCount then
+                needsUpdate = true
+            end
+        end
+
+        if needsUpdate then
+            if self:UpdateSingleSlot(bagID, slotID) then
+                updatedCount = updatedCount + 1
+            else
+                return -1  -- Update failed, need full redraw
+            end
+        end
+    end
+
+    return updatedCount
+end
+
 -- Update bagline layout (hover option)
 function BagFrame:UpdateBaglineLayout()
 	local hideFooter = addon.Modules.DB:GetSetting("hideFooter")
@@ -2587,12 +2692,30 @@ function BagFrame:Initialize()
      if currentViewChar then return end
      if not Guda_BagFrame:IsShown() then return end
 
-     -- Invalidate only the specific bag that changed (arg1 = bagID)
-     if arg1 and arg1 >= 0 and arg1 <= 4 then
+     -- Only handle player bags (0-4)
+     if not arg1 or arg1 < 0 or arg1 > 4 then return end
+
+     -- Check if sorting is in progress - use full redraw with throttle
+     local isSorting = addon.Modules.SortEngine and addon.Modules.SortEngine.sortingInProgress
+
+     if not isSorting then
+         -- Try incremental update for manual item moves
          addon.Modules.BagScanner:InvalidateBag(arg1)
+         if addon.Modules.ItemDetection then
+             addon.Modules.ItemDetection:ClearCache()
+         end
+
+         -- Try to update only changed slots in this bag
+         local result = BagFrame:UpdateChangedSlots(arg1)
+         if result >= 0 then
+             -- Success - updated slots without full redraw
+             return
+         end
+         -- Fall through to full redraw if incremental update failed
      end
 
-     -- Use standard delay, will auto-extend if sorting is in progress
+     -- Sorting in progress or incremental update failed - use throttled full redraw
+     addon.Modules.BagScanner:InvalidateBag(arg1)
      ScheduleBagFrameUpdate(0.1)
  end)
 
