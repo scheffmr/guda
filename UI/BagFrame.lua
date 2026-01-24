@@ -241,48 +241,93 @@ function BagFrame:UpdateChangedSlots(bagID)
     if not Guda_BagFrame:IsShown() then return -1 end
     if currentViewChar then return -1 end
 
-    local numSlots = GetContainerNumSlots(bagID)
-    if not numSlots or numSlots == 0 then return -1 end
-
     -- Check if we have the slot lookup table for this bag
     if not slotToButton[bagID] then return -1 end
 
-    local updatedCount = 0
-    for slotID = 1, numSlots do
-        -- O(1) button lookup using hash table
-        local targetButton = slotToButton[bagID][slotID]
+    local viewType = addon.Modules.DB:GetSetting("bagViewType") or "single"
+    local isCategoryView = (viewType == "category")
 
-        if not targetButton then
-            -- Button not found, need full redraw
-            return -1
-        end
+    if isCategoryView then
+        -- In Category View: update slots that HAVE button mappings
+        -- AND check for NEW items that arrived in slots without buttons
+        local updatedCount = 0
+        for slotID, targetButton in pairs(slotToButton[bagID]) do
+            local currentLink = GetContainerItemLink(bagID, slotID)
+            local cachedLink = targetButton.itemData and targetButton.itemData.link or nil
 
-        -- Compare current item with button's cached data
-        local currentLink = GetContainerItemLink(bagID, slotID)
-        local cachedLink = targetButton.itemData and targetButton.itemData.link or nil
-
-        -- Check if slot changed (different item or count)
-        local needsUpdate = false
-        if currentLink ~= cachedLink then
-            needsUpdate = true
-        elseif currentLink then
-            local _, currentCount = GetContainerItemInfo(bagID, slotID)
-            local cachedCount = targetButton.itemData and targetButton.itemData.count or 0
-            if currentCount ~= cachedCount then
+            local needsUpdate = false
+            if currentLink ~= cachedLink then
                 needsUpdate = true
+            elseif currentLink then
+                local _, currentCount = GetContainerItemInfo(bagID, slotID)
+                local cachedCount = targetButton.itemData and targetButton.itemData.count or 0
+                if currentCount ~= cachedCount then
+                    needsUpdate = true
+                end
+            end
+
+            if needsUpdate then
+                if self:UpdateSingleSlot(bagID, slotID) then
+                    updatedCount = updatedCount + 1
+                else
+                    return -1
+                end
             end
         end
 
-        if needsUpdate then
-            if self:UpdateSingleSlot(bagID, slotID) then
-                updatedCount = updatedCount + 1
-            else
-                return -1  -- Update failed, need full redraw
+        -- CRITICAL: Check for NEW items that arrived in slots WITHOUT button mappings
+        -- Category View only has buttons for filled slots, so new items need full redraw
+        local numSlots = GetContainerNumSlots(bagID)
+        if numSlots and numSlots > 0 then
+            for slotID = 1, numSlots do
+                -- If slot has an item but no button mapping -> new item arrived
+                if not slotToButton[bagID][slotID] then
+                    local currentLink = GetContainerItemLink(bagID, slotID)
+                    if currentLink then
+                        return -1  -- Trigger full redraw to categorize new item
+                    end
+                end
             end
         end
+
+        return updatedCount
+    else
+        -- In Single View: check all slots
+        local numSlots = GetContainerNumSlots(bagID)
+        if not numSlots or numSlots == 0 then return -1 end
+
+        local updatedCount = 0
+        for slotID = 1, numSlots do
+            local targetButton = slotToButton[bagID][slotID]
+
+            if not targetButton then
+                return -1
+            end
+
+            local currentLink = GetContainerItemLink(bagID, slotID)
+            local cachedLink = targetButton.itemData and targetButton.itemData.link or nil
+
+            local needsUpdate = false
+            if currentLink ~= cachedLink then
+                needsUpdate = true
+            elseif currentLink then
+                local _, currentCount = GetContainerItemInfo(bagID, slotID)
+                local cachedCount = targetButton.itemData and targetButton.itemData.count or 0
+                if currentCount ~= cachedCount then
+                    needsUpdate = true
+                end
+            end
+
+            if needsUpdate then
+                if self:UpdateSingleSlot(bagID, slotID) then
+                    updatedCount = updatedCount + 1
+                else
+                    return -1
+                end
+            end
+        end
+        return updatedCount
     end
-
-    return updatedCount
 end
 
 -- Update bagline layout (hover option)
@@ -2773,7 +2818,14 @@ function BagFrame:Initialize()
 	addon.Modules.Events:Register("ITEM_LOCK_CHANGED", function()
 		if currentViewChar then return end
 		if not Guda_BagFrame:IsShown() then return end
-		-- Use slightly longer delay for lock changes (they fire rapidly during drags)
+		-- In Category View, just update lock states visually without full redraw
+		local viewType = addon.Modules.DB:GetSetting("bagViewType") or "single"
+		if viewType == "category" then
+			-- Only update lock visual states, don't trigger full redraw
+			BagFrame:UpdateLockStates()
+			return
+		end
+		-- Use slightly longer delay for lock changes in single view (they fire rapidly during drags)
 		ScheduleBagFrameUpdate(0.15)
 	end, "BagFrame")
 
