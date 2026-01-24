@@ -143,10 +143,21 @@ local categoriesCache = nil
 local specialItemsCache = nil
 
 -- Clear a table without creating a new one (Lua 5.0 compatible)
+-- For arrays, iterate backwards to safely remove all elements
 local function WipeTable(t)
     if not t then return end
+    -- For arrays (numeric keys), remove from end to start
+    local n = table.getn(t)
+    if n > 0 then
+        for i = n, 1, -1 do
+            table.remove(t, i)
+        end
+    end
+    -- Also clear any non-numeric keys (hash part)
     for k in pairs(t) do
-        t[k] = nil
+        if type(k) ~= "number" then
+            t[k] = nil
+        end
     end
 end
 
@@ -161,9 +172,18 @@ function Guda_InitCategories()
     end
 
     -- Clear existing category arrays (don't recreate the main table)
+    local totalItemsBeforeWipe = 0
     for cat, items in pairs(categoriesCache) do
+        totalItemsBeforeWipe = totalItemsBeforeWipe + table.getn(items)
         WipeTable(items)
     end
+
+    -- Verify wipe worked
+    local totalItemsAfterWipe = 0
+    for cat, items in pairs(categoriesCache) do
+        totalItemsAfterWipe = totalItemsAfterWipe + table.getn(items)
+    end
+    addon:DebugCategory("InitCategories: beforeWipe=%d, afterWipe=%d", totalItemsBeforeWipe, totalItemsAfterWipe)
 
     if addon.Modules.CategoryManager then
         -- Get full category order (all categories, not just enabled)

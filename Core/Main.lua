@@ -132,6 +132,11 @@ function Main:SetupSlashCommands()
             addon.DEBUG_SORT = not addon.DEBUG_SORT
             addon:Print("Debug sort mode: %s", addon.DEBUG_SORT and "ON" or "OFF")
 
+        elseif msg == "debugcat" then
+            -- Toggle debug category view (for troubleshooting layout issues)
+            addon.DEBUG_CATEGORY = not addon.DEBUG_CATEGORY
+            addon:Print("Debug category mode: %s", addon.DEBUG_CATEGORY and "ON" or "OFF")
+
         elseif msg == "quest" then
             -- Toggle quest bar
             local show = not addon.Modules.DB:GetSetting("showQuestBar")

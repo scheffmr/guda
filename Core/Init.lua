@@ -15,6 +15,9 @@ addon.DEBUG = false
 -- Debug sort flag (verbose sorting output)
 addon.DEBUG_SORT = false
 
+-- Debug category view flag (for troubleshooting category view layout issues)
+addon.DEBUG_CATEGORY = false
+
 -- Constants
 addon.Constants = {
     -- Bag IDs
@@ -240,6 +243,14 @@ function addon:DebugSort(msg, a1, a2, a3, a4, a5, a6, a7)
     if self.DEBUG_SORT then
         local text = string.format(msg, a1, a2, a3, a4, a5, a6, a7)
         DEFAULT_CHAT_FRAME:AddMessage("|cFF87CEEB[Sort]|r |cFF00FF96Guda:|r " .. text)
+    end
+end
+
+-- Debug category view print (only shows when DEBUG_CATEGORY is enabled)
+function addon:DebugCategory(msg, a1, a2, a3, a4, a5, a6, a7)
+    if self.DEBUG_CATEGORY then
+        local text = string.format(msg or "nil", a1 or "", a2 or "", a3 or "", a4 or "", a5 or "", a6 or "", a7 or "")
+        DEFAULT_CHAT_FRAME:AddMessage("|cFFFF69B4[Category]|r |cFF00FF96Guda:|r " .. text)
     end
 end
 

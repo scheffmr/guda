@@ -422,6 +422,9 @@ function BagFrame:Update()
 		return
 	end
 
+	local viewType = addon.Modules.DB:GetSetting("bagViewType") or "single"
+	addon:DebugCategory("Update() START: viewType=%s", viewType)
+
     -- Report entry for frame budget tracking
     if addon.Modules.Utils and addon.Modules.Utils.ReportEntry then
         addon.Modules.Utils:ReportEntry()
@@ -453,16 +456,23 @@ function BagFrame:Update()
 	end
 
 	-- Mark all existing buttons as not in use (we'll mark active ones during display)
+	local totalButtonsBefore = 0
+	local shownButtonsBefore = 0
 	for _, bagParent in pairs(bagParents) do
 		if bagParent then
 			local buttons = { bagParent:GetChildren() }
 			for _, button in ipairs(buttons) do
 				if button.hasItem ~= nil then
+					totalButtonsBefore = totalButtonsBefore + 1
+					if button:IsShown() then
+						shownButtonsBefore = shownButtonsBefore + 1
+					end
 					button.inUse = false
 				end
 			end
 		end
 	end
+	addon:DebugCategory("Update() BEFORE: totalButtons=%d, shownButtons=%d", totalButtonsBefore, shownButtonsBefore)
 
 	local bagData
 	local isOtherChar = false
@@ -515,7 +525,9 @@ function BagFrame:Update()
     end
 
 	if viewType == "category" then
+		addon:DebugCategory("Update() calling DisplayItemsByCategory")
 		self:DisplayItemsByCategory(bagData, isOtherChar, charName)
+		addon:DebugCategory("Update() DisplayItemsByCategory returned, itemButtons count=%d", table.getn(itemButtons))
 		-- Show sort button with merge icon/tooltip for category view
 		local sortBtn = getglobal("Guda_BagFrame_SortButton")
 		if sortBtn then
@@ -544,6 +556,8 @@ function BagFrame:Update()
 	self:UpdateBaglineLayout()
 
 	-- Clean up unused buttons AFTER display is complete (prevents drag/drop issues)
+	local hiddenCount = 0
+	local stillShownCount = 0
 	for _, bagParent in pairs(bagParents) do
 		if bagParent then
 			local buttons = { bagParent:GetChildren() }
@@ -551,15 +565,20 @@ function BagFrame:Update()
 				if button.hasItem ~= nil and not button.inUse then
 					button:Hide()
 					button:ClearAllPoints()
+					hiddenCount = hiddenCount + 1
+				elseif button.hasItem ~= nil and button:IsShown() then
+					stillShownCount = stillShownCount + 1
 				end
 			end
 		end
 	end
+	addon:DebugCategory("Update() CLEANUP: hidden=%d, stillShown=%d", hiddenCount, stillShownCount)
 
     -- Record performance metrics
     if addon.Modules.Utils and addon.Modules.Utils.RecordUpdateEnd then
         addon.Modules.Utils:RecordUpdateEnd()
     end
+	addon:DebugCategory("Update() END")
 end
 
 -- Delegate to centralized helpers
@@ -578,11 +597,14 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
     local perRow = addon.Modules.DB:GetSetting("bagColumns") or 10
     local itemContainer = getglobal("Guda_BagFrame_ItemContainer")
 
+    addon:DebugCategory("DisplayItemsByCategory START: buttonSize=%d, spacing=%d, perRow=%d", buttonSize, spacing, perRow)
+
     -- Use centralized category initialization
     local categories, specialItems = Guda_InitCategories()
     local categoryList = Guda_CategoryList
 
     -- Categorize all items using centralized function
+    local totalItemsCategorized = 0
     for _, bagID in ipairs(addon.Constants.BAGS) do
         if not hiddenBags[bagID] then
             local bag = bagData[bagID]
@@ -590,11 +612,13 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 for slotID, itemData in pairs(bag.slots) do
                     if itemData then
                         Guda_CategorizeItem(itemData, bagID, slotID, categories, specialItems, isOtherChar)
+                        totalItemsCategorized = totalItemsCategorized + 1
                     end
                 end
             end
         end
     end
+    addon:DebugCategory("DisplayItemsByCategory: totalItemsCategorized=%d", totalItemsCategorized)
 
     -- Calculate total empty slots and find first available one for drop target
     local totalFreeSlots = 0
@@ -640,10 +664,12 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
     local categoryItemsProcessed = 0
     local CATEGORY_ITEMS_PER_BUDGET_CHECK = 8
 
+    local totalButtonsCreated = 0
     for _, catName in ipairs(categoryList) do
         local items = categories[catName]
         local numItems = items and table.getn(items) or 0
         if numItems > 0 then
+            addon:DebugCategory("  Category '%s': %d items, pos=(%d,%d)", catName, numItems, currentX, currentY)
             -- Sort items using centralized sorter
             Guda_SortCategoryItems(items)
 
@@ -658,6 +684,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 currentX = 0
                 currentY = currentY + rowMaxHeight
                 rowMaxHeight = 0
+                addon:DebugCategory("    -> wrap to new row, Y=%d", currentY)
             end
 
             -- Add Header
@@ -725,10 +752,12 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
                 end
             end
 
+            totalButtonsCreated = totalButtonsCreated + numItems
             if blockHeight > rowMaxHeight then rowMaxHeight = blockHeight end
             currentX = currentX + blockWidth + 20
         end
     end
+    addon:DebugCategory("DisplayItemsByCategory: totalButtonsCreated=%d from categories", totalButtonsCreated)
 
     -- Update Y for bottom sections
     local y = currentY + rowMaxHeight
@@ -868,6 +897,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
     local finalHeight = math.abs(y) + 20
     itemContainer:SetHeight(finalHeight)
     self:ResizeFrame(nil, nil, perRow, finalHeight)
+    addon:DebugCategory("DisplayItemsByCategory END: finalHeight=%d, itemButtons=%d", finalHeight, table.getn(itemButtons))
 end
 
 -- Display items
@@ -2698,6 +2728,9 @@ function BagFrame:Initialize()
      -- Only handle player bags (0-4)
      if not arg1 or arg1 < 0 or arg1 > 4 then return end
 
+     local viewType = addon.Modules.DB:GetSetting("bagViewType") or "single"
+     addon:DebugCategory("BAG_UPDATE: bagID=%s, viewType=%s", tostring(arg1), viewType)
+
      -- Check if sorting is in progress - use full redraw with throttle
      local isSorting = addon.Modules.SortEngine and addon.Modules.SortEngine.sortingInProgress
 
@@ -2708,11 +2741,14 @@ function BagFrame:Initialize()
 
          -- Try to update only changed slots in this bag
          local result = BagFrame:UpdateChangedSlots(arg1)
+         addon:DebugCategory("BAG_UPDATE: UpdateChangedSlots result=%s", tostring(result))
          if result >= 0 then
              -- Success - updated slots without full redraw
+             addon:DebugCategory("BAG_UPDATE: Incremental update succeeded, skipping full redraw")
              return
          end
          -- Fall through to full redraw if incremental update failed
+         addon:DebugCategory("BAG_UPDATE: Incremental update failed, doing full redraw")
      end
 
      -- Sorting in progress or incremental update failed - use throttled full redraw
