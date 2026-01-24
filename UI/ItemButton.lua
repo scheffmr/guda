@@ -251,10 +251,14 @@ end
 
 -- Create or get a button from the pool
 function Guda_GetItemButton(parent)
-    -- Try to reuse existing button
+    -- Try to reuse existing button from same parent
     for _, button in pairs(buttonPool) do
         -- Skip bag slot buttons
         if not button.isBagSlot and not button:IsShown() and button:GetParent() == parent then
+            -- Re-register with parent (itemButtons hash may have been cleared)
+            if Guda_RegisterItemButton then
+                Guda_RegisterItemButton(parent, button)
+            end
             return button
         end
     end

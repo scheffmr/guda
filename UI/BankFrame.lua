@@ -184,6 +184,62 @@ function BankFrame:UpdateSingleSlot(bagID, slotID)
     return true
 end
 
+-- Update changed slots in a bank bag by comparing with cached data
+-- Returns number of slots updated, or -1 if full redraw is needed
+function BankFrame:UpdateChangedSlots(bagID)
+    if not Guda_BankFrame:IsShown() then return -1 end
+    if currentViewChar then return -1 end
+
+    local bankBagParent = bankBagParents[bagID]
+    if not bankBagParent or not bankBagParent.itemButtons then return -1 end
+
+    local numSlots = addon.Modules.Utils:GetBagSlotCount(bagID)
+    if not numSlots or numSlots == 0 then return -1 end
+
+    local updatedCount = 0
+    for slotID = 1, numSlots do
+        -- Find button for this slot
+        local targetButton = nil
+        for button in pairs(bankBagParent.itemButtons) do
+            if button.bagID == bagID and button.slotID == slotID then
+                targetButton = button
+                break
+            end
+        end
+
+        if not targetButton then
+            -- Button not found, need full redraw
+            return -1
+        end
+
+        -- Compare current item with button's cached data
+        local currentLink = GetContainerItemLink(bagID, slotID)
+        local cachedLink = targetButton.itemData and targetButton.itemData.link or nil
+
+        -- Check if slot changed (different item or count)
+        local needsUpdate = false
+        if currentLink ~= cachedLink then
+            needsUpdate = true
+        elseif currentLink then
+            local _, currentCount = GetContainerItemInfo(bagID, slotID)
+            local cachedCount = targetButton.itemData and targetButton.itemData.count or 0
+            if currentCount ~= cachedCount then
+                needsUpdate = true
+            end
+        end
+
+        if needsUpdate then
+            if self:UpdateSingleSlot(bagID, slotID) then
+                updatedCount = updatedCount + 1
+            else
+                return -1  -- Update failed, need full redraw
+            end
+        end
+    end
+
+    return updatedCount
+end
+
 -- Deferred update state for frame budgeting
 local bankPendingUpdate = false
 local bankUpdateDebounceFrame = nil
@@ -245,6 +301,7 @@ function BankFrame:Update()
         -- If no items displayed yet, continue with full update
     end
 
+    -- Mark all existing buttons as not in use (we'll mark active ones during display)
     -- Mark all existing buttons as not in use (we'll mark active ones during display)
     for _, bankBagParent in pairs(bankBagParents) do
         if bankBagParent and bankBagParent.itemButtons then
@@ -1705,11 +1762,24 @@ function BankFrame:Initialize()
         elseif event == "BAG_UPDATE" and arg1 then
             -- Check if this is a bank bag (5-10)
             if arg1 >= 5 and arg1 <= 10 then
-                -- Invalidate the specific bank bag
-                addon.Modules.BankScanner:InvalidateBag(arg1)
-                -- Clear ItemDetection cache to ensure fresh detection after item swap
-                if addon.Modules.ItemDetection then
-                    addon.Modules.ItemDetection:ClearCache()
+                -- Try incremental update if not sorting
+                if not isSorting then
+                    addon.Modules.BankScanner:InvalidateBag(arg1)
+                    if addon.Modules.ItemDetection then
+                        addon.Modules.ItemDetection:ClearCache()
+                    end
+                    -- Try to update only changed slots
+                    local result = BankFrame:UpdateChangedSlots(arg1)
+                    if result >= 0 then
+                        return  -- Success, no full redraw needed
+                    end
+                    -- Fall through to full redraw
+                else
+                    -- Sorting in progress - invalidate for full redraw
+                    addon.Modules.BankScanner:InvalidateBag(arg1)
+                    if addon.Modules.ItemDetection then
+                        addon.Modules.ItemDetection:ClearCache()
+                    end
                 end
             else
                 -- Not a bank bag, ignore for bank frame
