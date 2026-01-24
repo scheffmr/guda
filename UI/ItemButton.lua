@@ -993,12 +993,21 @@ function Guda_ItemButton_SetItem(self, bagID, slotID, itemData, isBank, otherCha
             isLocked = locked
         end
 
+        -- Fall back to itemData.quality if live query returned nil (timing issue on bank open)
+        if itemQuality == nil and itemData and itemData.quality then
+            itemQuality = itemData.quality
+        end
+
         -- Ensure itemData is populated for live items (needed for ItemDetection)
         if itemLink then
             local itemName, _, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture = GetItemInfo(itemLink)
             -- For bank main bag, get quality from GetItemInfo
             if self.isBank and bagID == -1 then
                 itemQuality = itemRarity
+                -- Fall back to itemData.quality if GetItemInfo returned nil
+                if itemQuality == nil and itemData and itemData.quality then
+                    itemQuality = itemData.quality
+                end
             end
             if not itemData then
                 -- Create new itemData

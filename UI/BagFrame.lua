@@ -204,7 +204,7 @@ function BagFrame:UpdateSingleSlot(bagID, slotID)
     local itemData = nil
 
     if itemLink then
-        local texture, itemCount, locked = GetContainerItemInfo(bagID, slotID)
+        local texture, itemCount, locked, slotQuality = GetContainerItemInfo(bagID, slotID)
         local itemID = nil
         local _, _, idStr = string.find(itemLink, "item:(%d+)")
         if idStr then itemID = tonumber(idStr) end
@@ -215,7 +215,7 @@ function BagFrame:UpdateSingleSlot(bagID, slotID)
                 link = itemLink,
                 texture = texture,
                 count = itemCount or 1,
-                quality = quality or 0,
+                quality = quality or slotQuality or 0,
                 name = name,
                 iLevel = iLevel,
                 type = itemType,

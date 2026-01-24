@@ -154,18 +154,18 @@ function BankFrame:UpdateSingleSlot(bagID, slotID)
     local itemData = nil
 
     if itemLink then
-        local texture, itemCount, locked = GetContainerItemInfo(bagID, slotID)
+        local texture, itemCount, locked, quality = GetContainerItemInfo(bagID, slotID)
         local itemID = nil
         local _, _, idStr = string.find(itemLink, "item:(%d+)")
         if idStr then itemID = tonumber(idStr) end
 
         if itemID then
-            local name, link, quality, iLevel, _, itemType, stackCount, subType, _, equipLoc = GetItemInfo(itemID)
+            local name, link, itemQuality, iLevel, _, itemType, stackCount, subType, _, equipLoc = GetItemInfo(itemID)
             itemData = {
                 link = itemLink,
                 texture = texture,
                 count = itemCount or 1,
-                quality = quality or 0,
+                quality = quality or itemQuality or 0,  -- Prefer GetContainerItemInfo, fallback to GetItemInfo
                 name = name,
                 iLevel = iLevel,
                 type = itemType,
