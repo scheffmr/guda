@@ -785,7 +785,7 @@ function BagFrame:DisplayItemsByCategory(bagData, isOtherChar, charName)
     end
 
     -- Layout
-    local startX, startY = 10, -10
+    local startX, startY = 0, 0
     local currentX, currentY = 0, 0
     local rowMaxHeight = 0
     local headerIdx = 1
@@ -1033,7 +1033,7 @@ end
 
 -- Display items
 function BagFrame:DisplayItems(bagData, isOtherChar, charName)
-	local x, y = 10, -10
+	local x, y = 0, 0
 	local row = 0
 	local col = 0
 	local buttonSize = addon.Modules.DB:GetSetting("iconSize") or addon.Constants.BUTTON_SIZE
