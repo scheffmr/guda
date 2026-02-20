@@ -17,7 +17,7 @@
 
         <Backdrop bgFile="Interface\ChatFrame\ChatFrameBackground" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
             <BackgroundInsets>
-                <AbsInset left="11" right="12" top="12" bottom="11"/>
+                <AbsInset left="0" right="0" top="0" bottom="0"/>
             </BackgroundInsets>
             <TileSize>
                 <AbsValue val="16"/>
